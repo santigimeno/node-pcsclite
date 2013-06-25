@@ -3,7 +3,24 @@ node-pcsclite
 
 Bindings over pcsclite to access Smart Cards
 
+Installation
+============
+
+In order to install the package you need to have installed in the system the
+pcsclite libraries. In Debian/Ubuntu:
+
+    apt-get install libpcsclite1 libpcsclite-dev.
+
+Once they are installed just run:
+
+    npm install pcsclite
+
+To run any code you will also need to have installed the pcsc daemon:
+
+    apt-get install pcscd
+
 Example
+=======
 
     var pcsc = require('pcsclite');
 
