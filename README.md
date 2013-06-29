@@ -9,7 +9,7 @@ Installation
 In order to install the package you need to have installed in the system the
 pcsclite libraries. In Debian/Ubuntu:
 
-    apt-get install libpcsclite1 libpcsclite-dev.
+    apt-get install libpcsclite1 libpcsclite-dev
 
 Once they are installed just run:
 
