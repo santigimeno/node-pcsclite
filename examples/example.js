@@ -12,11 +12,11 @@ pcsc.on('reader', function(reader) {
     reader.on('status', function(status) {
         console.log('Status(', this.name, '):', status);
         /* check what has changed */
-        var changes = this.status ^ status;
+        var changes = this.state ^ status.state;
         if (changes) {
-            if ((changes & this.SCARD_STATE_EMPTY) && (status & this.SCARD_STATE_EMPTY)) {
+            if ((changes & this.SCARD_STATE_EMPTY) && (status.state & this.SCARD_STATE_EMPTY)) {
                 console.log("card removed");/* card removed */
-            } else if ((changes & this.SCARD_STATE_PRESENT) && (status & this.SCARD_STATE_PRESENT)) {
+            } else if ((changes & this.SCARD_STATE_PRESENT) && (status.state & this.SCARD_STATE_PRESENT)) {
                 console.log("card inserted");/* card inserted */
             }
         }

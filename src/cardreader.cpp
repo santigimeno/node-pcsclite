@@ -225,10 +225,11 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
     }
 
     if (ar->result == SCARD_S_SUCCESS) {
-        const unsigned argc = 2;
+        const unsigned argc = 3;
         Handle<Value> argv[argc] = {
             Undefined(), // argument
-            Integer::New(ar->status)
+            Integer::New(ar->status),
+            CreateBufferInstance(reinterpret_cast<char*>(ar->atr), ar->atrlen)
         };
 
         PerformCallback(async_baton->reader->handle_, async_baton->callback, argc, argv);
@@ -264,6 +265,8 @@ void* CardReader::HandlerFunction(void* arg) {
         result = SCardGetStatusChange(reader->m_status_card_context, INFINITE, &card_reader_state, 1);
         async_baton->async_result->result = result;
         async_baton->async_result->status = card_reader_state.dwEventState;
+        memcpy(async_baton->async_result->atr, card_reader_state.rgbAtr, card_reader_state.cbAtr);
+        async_baton->async_result->atrlen = card_reader_state.cbAtr;
         uv_async_send(&async_baton->async);
         card_reader_state.dwCurrentState = card_reader_state.dwEventState;
     }
@@ -433,16 +436,9 @@ void CardReader::AfterTransmit(uv_work_t* req) {
         PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
     } else {
         const unsigned argc = 2;
-        // get Buffer from global scope.
-        Local<Object> global = v8::Context::GetCurrent()->Global();
-        Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
-        assert(bv->IsFunction());
-        Local<Function> b = Local<Function>::Cast(bv);
-        Handle<Value> argv1[3] = { Buffer::New(reinterpret_cast<char*>(tr->data), tr->len)->handle_, Integer::New(tr->len) , Integer::New(0) };
-        Handle<Object> instance = b->NewInstance(3, argv1);
         Handle<Value> argv[argc] = {
             Local<Value>::New(Null()),
-            instance
+            CreateBufferInstance(reinterpret_cast<char*>(tr->data), tr->len)
         };
 
         PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
@@ -467,4 +463,23 @@ void CardReader::CloseCallback(uv_handle_t *handle) {
     async_baton->callback.Dispose();
     SCardReleaseContext(async_baton->reader->m_status_card_context);
     delete async_baton;
+}
+
+Handle<Value> CardReader::CreateBufferInstance(char* data, unsigned long size) {
+    if (size == 0) {
+        return Undefined();
+    }
+
+    // get Buffer from global scope.
+    Local<Object> global = Context::GetCurrent()->Global();
+    Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
+    assert(bv->IsFunction());
+    Local<Function> b = Local<Function>::Cast(bv);
+    Handle<Value> argv[3] = {
+        Buffer::New(data, size)->handle_,
+        Integer::New(size),
+        Integer::New(0) 
+    };
+    
+    return b->NewInstance(3, argv);
 }

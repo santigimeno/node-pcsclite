@@ -41,6 +41,8 @@ class CardReader: public node::ObjectWrap {
     struct AsyncResult {
         LONG result;
         unsigned long status;
+        unsigned char atr[MAX_ATR_SIZE];
+        unsigned long atrlen;
         bool do_exit;
     };
 
@@ -79,6 +81,8 @@ class CardReader: public node::ObjectWrap {
         static void DoTransmit(uv_work_t* req);
         static void AfterTransmit(uv_work_t* req);
         static void CloseCallback(uv_handle_t *handle);
+
+        static v8::Handle<v8::Value> CreateBufferInstance(char* data, unsigned long size);
 
     private:
 
