@@ -123,7 +123,7 @@ void* PCSCLite::HandlerFunction(void* arg) {
     PCSCLite* pcsclite = async_baton->pcsclite;
     async_baton->async_result = new AsyncResult();
 
-    SCARD_READERSTATE card_reader_state;
+    SCARD_READERSTATE card_reader_state = { 0 };
     card_reader_state.szReader = "\\\\?PnP?\\Notification";
     card_reader_state.dwCurrentState = SCARD_STATE_UNAWARE;
 

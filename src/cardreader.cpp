@@ -255,7 +255,7 @@ void* CardReader::HandlerFunction(void* arg) {
     /* Unlock the mutex */
     pthread_mutex_unlock(&reader->m_mutex);
 
-    SCARD_READERSTATE card_reader_state;
+    SCARD_READERSTATE card_reader_state = { 0 };
     card_reader_state.szReader = reader->m_name.c_str();
     card_reader_state.dwCurrentState = SCARD_STATE_UNAWARE;
 
@@ -478,8 +478,8 @@ Handle<Value> CardReader::CreateBufferInstance(char* data, unsigned long size) {
     Handle<Value> argv[3] = {
         Buffer::New(data, size)->handle_,
         Integer::New(size),
-        Integer::New(0) 
+        Integer::New(0)
     };
-    
+
     return b->NewInstance(3, argv);
 }
