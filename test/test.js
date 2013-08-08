@@ -6,47 +6,57 @@ var assert = require('assert');
 describe('Testing PCSCLite private', function() {
 
     describe('#start()', function() {
+        before(function() {
+            this.clock = sinon.useFakeTimers();
+        });
+
         it('#start() stub', function(done) {
+            var self = this;
             var p = pcsc();
             var stub = sinon.stub(p, 'start', function(my_cb) {
-                /* "MyReader\0" */
-                my_cb(undefined, new Buffer("MyReader\0"));
+                var times = 0;
+                setInterval(function() {
+                    switch (++ times) {
+                        case 1:
+                            my_cb(undefined, new Buffer("MyReader\0"));
+                            self.clock.tick(1000);
+                        break;
+
+                        case 2:
+                            my_cb(undefined, new Buffer("MyReader"));
+                        break;
+
+                        case 3:
+                            my_cb(undefined, new Buffer("MyReader1\0MyReader2\0"));
+                        break;
+                    }
+                }, 1000);
+                self.clock.tick(1000);
             });
 
+            var times = 0;
             p.on('reader', function(reader) {
-                reader.name.should.equal("MyReader");
-                done();
+                reader.close();
+                switch (++ times) {
+                    case 1:
+                        reader.name.should.equal("MyReader");
+                    break;
+
+                    case 2:
+                        reader.name.should.equal("MyReader1");
+                    break;
+
+                    case 3:
+                        reader.name.should.equal("MyReader2");
+                        p.close();
+                        done();
+                    break;
+                }
             });
         });
 
-        it('#start() stub', function() {
-            var cb = sinon.spy();
-            var p = pcsc();
-            var stub = sinon.stub(p, 'start', function(my_cb) {
-                /* "MyReader" */
-                my_cb(undefined, new Buffer("MyReader"));
-            });
-
-            p.on('reader', cb);
-            process.nextTick(function () {
-                sinon.assert.notCalled(cb);
-            });
-        });
-
-        it('#start() stub', function() {
-            var cb = sinon.spy();
-            var p = pcsc();
-            var stub = sinon.stub(p, 'start', function(my_cb) {
-                /* "MyReader1\0MyReader2\0" */
-                my_cb(undefined, new Buffer("MyReader1\0MyReader2\0"));
-            });
-
-            p.on('reader', cb);
-            process.nextTick(function () {
-                sinon.assert.calledTwice(cb);
-                assert(cb.args[0][0]['name'], "MyReader1");
-                assert(cb.args[1][0]['name'], "MyReader2");
-            });
+        after(function() {
+            this.clock.restore();
         });
     });
 });
