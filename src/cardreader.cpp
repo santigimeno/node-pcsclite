@@ -311,7 +311,11 @@ void CardReader::DoConnect(uv_work_t* req) {
     baton->result = cr;
 }
 
+#if NODE_VERSION_AT_LEAST(0, 9, 4)
+void CardReader::AfterConnect(uv_work_t* req, int status) {
+#else
 void CardReader::AfterConnect(uv_work_t* req) {
+#endif
 
     HandleScope scope;
     Baton* baton = static_cast<Baton*>(req->data);
@@ -363,7 +367,11 @@ void CardReader::DoDisconnect(uv_work_t* req) {
     baton->result = reinterpret_cast<void*>(result);
 }
 
+#if NODE_VERSION_AT_LEAST(0, 9, 4)
+void CardReader::AfterDisconnect(uv_work_t* req, int status) {
+#else
 void CardReader::AfterDisconnect(uv_work_t* req) {
+#endif
 
     HandleScope scope;
     Baton* baton = static_cast<Baton*>(req->data);
@@ -420,7 +428,11 @@ void CardReader::DoTransmit(uv_work_t* req) {
     baton->result = tr;
 }
 
+#if NODE_VERSION_AT_LEAST(0, 9, 4)
+void CardReader::AfterTransmit(uv_work_t* req, int status) {
+#else
 void CardReader::AfterTransmit(uv_work_t* req) {
+#endif
 
     HandleScope scope;
     Baton* baton = static_cast<Baton*>(req->data);

@@ -2,6 +2,7 @@
 #define CARDREADER_H
 
 #include <node.h>
+#include <node_version.h>
 #include <winscard.h>
 #include <string>
 #include <pthread.h>
@@ -75,12 +76,20 @@ class CardReader: public node::ObjectWrap {
         static void HandleReaderStatusChange(uv_async_t *handle, int status);
         static void* HandlerFunction(void* arg);
         static void DoConnect(uv_work_t* req);
-        static void AfterConnect(uv_work_t* req);
         static void DoDisconnect(uv_work_t* req);
-        static void AfterDisconnect(uv_work_t* req);
         static void DoTransmit(uv_work_t* req);
-        static void AfterTransmit(uv_work_t* req);
         static void CloseCallback(uv_handle_t *handle);
+
+#if NODE_VERSION_AT_LEAST(0, 9, 4)
+        static void AfterConnect(uv_work_t* req, int status);
+        static void AfterDisconnect(uv_work_t* req, int status);
+        static void AfterTransmit(uv_work_t* req, int status);
+#else
+        static void AfterConnect(uv_work_t* req);
+        static void AfterDisconnect(uv_work_t* req);
+        static void AfterTransmit(uv_work_t* req);
+#endif
+
 
         static v8::Handle<v8::Value> CreateBufferInstance(char* data, unsigned long size);
 
