@@ -416,7 +416,8 @@ void CardReader::DoTransmit(uv_work_t* req) {
     pthread_mutex_lock(&obj->m_mutex);
     /* Connected? */
     if (obj->m_card_handle) {
-        result = SCardTransmit(obj->m_card_handle, SCARD_PCI_T0, ti->in_data, ti->in_len,
+        SCARD_IO_REQUEST send_pci = { ti->card_protocol, sizeof(SCARD_IO_REQUEST) };
+        result = SCardTransmit(obj->m_card_handle, &send_pci, ti->in_data, ti->in_len,
                                &io_request, tr->data, &tr->len);
     }
 
