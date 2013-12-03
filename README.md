@@ -77,3 +77,7 @@ Example
         console.log('PCSC error', err.message);
     });
 
+
+
+[![Bitdeli Badge](https://d2weczhvl823v0.cloudfront.net/santigimeno/node-pcsclite/trend.png)](https://bitdeli.com/free "Bitdeli Badge")
+
