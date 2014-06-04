@@ -1,11 +1,4 @@
 #include "pcsclite.h"
-#include "common.h"
-
-#include <v8.h>
-#include <pcsclite.h>
-#include <node_buffer.h>
-#include <string>
-#include <string.h>
 
 using namespace v8;
 using namespace node;
@@ -15,15 +8,15 @@ Persistent<Function> PCSCLite::constructor;
 void PCSCLite::init(Handle<Object> target) {
 
     // Prepare constructor template
-    Local<FunctionTemplate> tpl = FunctionTemplate::New(New);
-    tpl->SetClassName(String::NewSymbol("PCSCLite"));
+    Local<FunctionTemplate> tpl = NanNew<FunctionTemplate>(New);
+    tpl->SetClassName(NanNew("PCSCLite"));
     tpl->InstanceTemplate()->SetInternalFieldCount(1);
     // Prototype
-    NODE_SET_PROTOTYPE_METHOD(tpl, "start", Start);
-    NODE_SET_PROTOTYPE_METHOD(tpl, "close", Close);
+    NanSetPrototypeTemplate(tpl, "start", NanNew<FunctionTemplate>(Start));
+    NanSetPrototypeTemplate(tpl, "close", NanNew<FunctionTemplate>(Close));
 
-    constructor = Persistent<Function>::New(tpl->GetFunction());
-    target->Set(String::NewSymbol("PCSCLite"), constructor);
+    NanAssignPersistent<Function>(constructor, tpl->GetFunction());
+    target->Set(NanNew("PCSCLite"), tpl->GetFunction());
 }
 
 PCSCLite::PCSCLite(): m_card_context(0) {
@@ -39,45 +32,46 @@ PCSCLite::~PCSCLite() {
     pthread_cancel(m_status_thread);
 }
 
-Handle<Value> PCSCLite::New(const Arguments& args) {
-
-    HandleScope scope;
+NAN_METHOD(PCSCLite::New) {
+    NanScope();
     PCSCLite* obj = new PCSCLite();
     obj->Wrap(args.Holder());
-    return scope.Close(args.Holder());
+    NanReturnValue(args.Holder());
 }
 
-Handle<Value> PCSCLite::Start(const Arguments& args) {
+NAN_METHOD(PCSCLite::Start) {
 
-    HandleScope scope;
+    NanScope();
 
     PCSCLite* obj = ObjectWrap::Unwrap<PCSCLite>(args.This());
     Local<Function> cb = Local<Function>::Cast(args[0]);
 
     AsyncBaton *async_baton = new AsyncBaton();
     async_baton->async.data = async_baton;
-    async_baton->callback = Persistent<Function>::New(cb);
+    NanAssignPersistent(async_baton->callback, cb);
     async_baton->pcsclite = obj;
 
-    uv_async_init(uv_default_loop(), &async_baton->async, HandleReaderStatusChange);
+    uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
     pthread_create(&obj->m_status_thread, NULL, HandlerFunction, async_baton);
     pthread_detach(obj->m_status_thread);
 
-    return scope.Close(Undefined());
+    NanReturnUndefined();
 }
 
-Handle<Value> PCSCLite::Close(const Arguments& args) {
+NAN_METHOD(PCSCLite::Close) {
 
-    HandleScope scope;
+    NanScope();
 
     PCSCLite* obj = ObjectWrap::Unwrap<PCSCLite>(args.This());
 
     LONG result = SCardCancel(obj->m_card_context);
 
-    return scope.Close(Integer::New(result));
+    NanReturnValue(NanNew<Integer>(result));
 }
 
 void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
+
+    NanScope();
 
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     PCSCLite* pcsclite = async_baton->pcsclite;
@@ -91,17 +85,17 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
     if ((ar->result == SCARD_S_SUCCESS) || (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) {
         const unsigned argc = 2;
         Handle<Value> argv[argc] = {
-            Undefined(), // argument
-            Buffer::New(ar->readers_name, ar->readers_name_length)->handle_
+            NanUndefined(), // argument
+            NanNewBufferHandle(ar->readers_name, ar->readers_name_length)
         };
 
-        PerformCallback(async_baton->pcsclite->handle_, async_baton->callback, argc, argv);
+        NanCallback(NanNew(async_baton->callback)).Call(argc, argv);
     } else {
-        Local<Value> err = Exception::Error(String::New(pcsc_stringify_error(ar->result)));
+        Local<Value> err = NanError(pcsc_stringify_error(ar->result));
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
-        PerformCallback(async_baton->pcsclite->handle_, async_baton->callback, argc, argv);
+        NanCallback(NanNew(async_baton->callback)).Call(argc, argv);
     }
 
     /* reset AsyncResult */
@@ -150,7 +144,7 @@ void PCSCLite::CloseCallback(uv_handle_t *handle) {
     AsyncResult* ar = async_baton->async_result;
     delete [] ar->readers_name;
     delete ar;
-    async_baton->callback.Dispose();
+    NanDisposePersistent(async_baton->callback);
     delete async_baton;
 }
 

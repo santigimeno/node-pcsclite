@@ -1,10 +1,4 @@
 #include "cardreader.h"
-#include "common.h"
-
-#include <v8.h>
-#include <node_buffer.h>
-#include <pcsclite.h>
-#include <string.h>
 
 using namespace v8;
 using namespace node;
@@ -14,64 +8,48 @@ Persistent<Function> CardReader::constructor;
 void CardReader::init(Handle<Object> target) {
 
      // Prepare constructor template
-    Local<FunctionTemplate> tpl = FunctionTemplate::New(New);
-    tpl->SetClassName(String::NewSymbol("CardReader"));
+    Local<FunctionTemplate> tpl = NanNew<FunctionTemplate>(New);
+    tpl->SetClassName(NanNew("CardReader"));
     tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
     // Symbol
-    name_symbol = NODE_PSYMBOL("name");
-    connected_symbol = NODE_PSYMBOL("connected");
+    NanAssignPersistent(name_symbol, NanNew("name"));
+    NanAssignPersistent(connected_symbol, NanNew("connected"));
 
     // Prototype
-    NODE_SET_PROTOTYPE_METHOD(tpl, "get_status", GetStatus);
-    NODE_SET_PROTOTYPE_METHOD(tpl, "_connect", Connect);
-    NODE_SET_PROTOTYPE_METHOD(tpl, "_disconnect", Disconnect);
-    NODE_SET_PROTOTYPE_METHOD(tpl, "_transmit", Transmit);
-    NODE_SET_PROTOTYPE_METHOD(tpl, "_control", Control);
-    NODE_SET_PROTOTYPE_METHOD(tpl, "close", Close);
+    NanSetPrototypeTemplate(tpl, "get_status", NanNew<FunctionTemplate>(GetStatus));
+    NanSetPrototypeTemplate(tpl, "_connect", NanNew<FunctionTemplate>(Connect));
+    NanSetPrototypeTemplate(tpl, "_disconnect", NanNew<FunctionTemplate>(Disconnect));
+    NanSetPrototypeTemplate(tpl, "_transmit", NanNew<FunctionTemplate>(Transmit));
+    NanSetPrototypeTemplate(tpl, "_control", NanNew<FunctionTemplate>(Control));
+    NanSetPrototypeTemplate(tpl, "close", NanNew<FunctionTemplate>(Close));
 
     // PCSCLite constants
     // Share Mode
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_SHARE_SHARED"),
-                                  Integer::New(SCARD_SHARE_SHARED));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_SHARE_EXCLUSIVE"),
-                                  Integer::New(SCARD_SHARE_EXCLUSIVE));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_SHARE_DIRECT"),
-                                  Integer::New(SCARD_SHARE_DIRECT));
+    NanSetPrototypeTemplate(tpl, "SCARD_SHARE_SHARED", NanNew(SCARD_SHARE_SHARED));
+    NanSetPrototypeTemplate(tpl, "SCARD_SHARE_EXCLUSIVE", NanNew(SCARD_SHARE_EXCLUSIVE));
+    NanSetPrototypeTemplate(tpl, "SCARD_SHARE_DIRECT", NanNew(SCARD_SHARE_DIRECT));
+
     // Protocol
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_PROTOCOL_T0"),
-                                  Integer::New(SCARD_PROTOCOL_T0));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_PROTOCOL_T1"),
-                                  Integer::New(SCARD_PROTOCOL_T1));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_PROTOCOL_RAW"),
-                                  Integer::New(SCARD_PROTOCOL_RAW));
+    NanSetPrototypeTemplate(tpl, "SCARD_PROTOCOL_T0", NanNew(SCARD_PROTOCOL_T0));
+    NanSetPrototypeTemplate(tpl, "SCARD_PROTOCOL_T1", NanNew(SCARD_PROTOCOL_T1));
+    NanSetPrototypeTemplate(tpl, "SCARD_PROTOCOL_RAW", NanNew(SCARD_PROTOCOL_RAW));
+
     //  State
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_UNAWARE"),
-                                  Integer::New(SCARD_STATE_UNAWARE));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_IGNORE"),
-                                  Integer::New(SCARD_STATE_IGNORE));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_CHANGED"),
-                                  Integer::New(SCARD_STATE_CHANGED));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_UNKNOWN"),
-                                  Integer::New(SCARD_STATE_UNKNOWN));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_UNAVAILABLE"),
-                                  Integer::New(SCARD_STATE_UNAVAILABLE));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_EMPTY"),
-                                  Integer::New(SCARD_STATE_EMPTY));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_PRESENT"),
-                                  Integer::New(SCARD_STATE_PRESENT));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_ATRMATCH"),
-                                  Integer::New(SCARD_STATE_ATRMATCH));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_EXCLUSIVE"),
-                                  Integer::New(SCARD_STATE_EXCLUSIVE));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_INUSE"),
-                                  Integer::New(SCARD_STATE_INUSE));
-    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_MUTE"),
-                                  Integer::New(SCARD_STATE_MUTE));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_UNAWARE", NanNew(SCARD_STATE_UNAWARE));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_IGNORE", NanNew(SCARD_STATE_IGNORE));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_CHANGED", NanNew(SCARD_STATE_CHANGED));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_UNKNOWN", NanNew(SCARD_STATE_UNKNOWN));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_UNAVAILABLE", NanNew(SCARD_STATE_UNAVAILABLE));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_EMPTY", NanNew(SCARD_STATE_EMPTY));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_PRESENT", NanNew(SCARD_STATE_PRESENT));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_ATRMATCH", NanNew(SCARD_STATE_ATRMATCH));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_EXCLUSIVE", NanNew(SCARD_STATE_EXCLUSIVE));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_INUSE", NanNew(SCARD_STATE_INUSE));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_MUTE", NanNew(SCARD_STATE_MUTE));
 
-
-    constructor = Persistent<Function>::New(tpl->GetFunction());
-    target->Set(String::NewSymbol("CardReader"), constructor);
+    NanAssignPersistent<Function>(constructor, tpl->GetFunction());
+    target->Set(NanNew("CardReader"), tpl->GetFunction());
 }
 
 CardReader::CardReader(const std::string &reader_name): m_card_context(0),
@@ -93,56 +71,53 @@ CardReader::~CardReader() {
     pthread_mutex_destroy(&m_mutex);
 }
 
-Handle<Value> CardReader::New(const Arguments& args) {
+NAN_METHOD(CardReader::New) {
 
-    HandleScope scope;
+    NanScope();
 
     v8::String::Utf8Value reader_name(args[0]->ToString());
     CardReader* obj = new CardReader(*reader_name);
     obj->Wrap(args.Holder());
-    obj->handle_->Set(name_symbol, args[0]->ToString());
-    obj->handle_->Set(connected_symbol, Boolean::New(false));
+    NanObjectWrapHandle(obj)->Set(NanNew(name_symbol), args[0]->ToString());
+    NanObjectWrapHandle(obj)->Set(NanNew(connected_symbol), NanFalse());
 
-    return scope.Close(args.Holder());
+    NanReturnValue(args.Holder());
 }
 
-Handle<Value> CardReader::GetStatus(const Arguments& args) {
+NAN_METHOD(CardReader::GetStatus) {
 
-    HandleScope scope;
+    NanScope();
 
     CardReader* obj = ObjectWrap::Unwrap<CardReader>(args.This());
     Local<Function> cb = Local<Function>::Cast(args[0]);
 
     AsyncBaton *async_baton = new AsyncBaton();
     async_baton->async.data = async_baton;
-    async_baton->callback = Persistent<Function>::New(cb);
+    NanAssignPersistent(async_baton->callback, cb);
     async_baton->reader = obj;
 
-    uv_async_init(uv_default_loop(), &async_baton->async, HandleReaderStatusChange);
+    uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
     pthread_create(&obj->m_status_thread, NULL, HandlerFunction, async_baton);
     pthread_detach(obj->m_status_thread);
 
-    return scope.Close(Undefined());
+    NanReturnUndefined();
 }
 
-Handle<Value> CardReader::Connect(const Arguments& args) {
+NAN_METHOD(CardReader::Connect) {
 
-    HandleScope scope;
+    NanScope();
 
     // The second argument is the length of the data to be received
     if (!args[0]->IsUint32()) {
-        return ThrowException(Exception::TypeError(
-            String::New("First argument must be an integer")));
+        NanThrowError("First argument must be an integer");
     }
 
     if (!args[1]->IsUint32()) {
-        return ThrowException(Exception::TypeError(
-            String::New("Second argument must be an integer")));
+        NanThrowError("Second argument must be an integer");
     }
 
     if (!args[2]->IsFunction()) {
-        return ThrowException(Exception::TypeError(
-            String::New("Third argument must be a callback function")));
+        NanThrowError("Third argument must be a callback function");
     }
 
     ConnectInput* ci = new ConnectInput();
@@ -153,26 +128,28 @@ Handle<Value> CardReader::Connect(const Arguments& args) {
     // This creates our work request, including the libuv struct.
     Baton* baton = new Baton();
     baton->request.data = baton;
-    baton->callback = Persistent<Function>::New(cb);
+    NanAssignPersistent(baton->callback, cb);
     baton->reader = ObjectWrap::Unwrap<CardReader>(args.This());
     baton->input = ci;
 
     // Schedule our work request with libuv. Here you can specify the functions
     // that should be executed in the threadpool and back in the main thread
     // after the threadpool function completed.
-    int status = uv_queue_work(uv_default_loop(), &baton->request, DoConnect, AfterConnect);
+    int status = uv_queue_work(uv_default_loop(),
+                               &baton->request,
+                               DoConnect,
+                               reinterpret_cast<uv_after_work_cb>(AfterConnect));
     assert(status == 0);
 
-    return scope.Close(Undefined());
+    NanReturnUndefined();
 }
 
-Handle<Value> CardReader::Disconnect(const Arguments& args) {
+NAN_METHOD(CardReader::Disconnect) {
 
-    HandleScope scope;
+    NanScope();
 
     if (!args[0]->IsFunction()) {
-        return ThrowException(Exception::TypeError(
-            String::New("First argument must be a callback function")));
+        NanThrowError("First argument must be a callback function");
     }
 
     Local<Function> cb = Local<Function>::Cast(args[0]);
@@ -180,44 +157,43 @@ Handle<Value> CardReader::Disconnect(const Arguments& args) {
     // This creates our work request, including the libuv struct.
     Baton* baton = new Baton();
     baton->request.data = baton;
-    baton->callback = Persistent<Function>::New(cb);
+    NanAssignPersistent(baton->callback, cb);
     baton->reader = ObjectWrap::Unwrap<CardReader>(args.This());
 
     // Schedule our work request with libuv. Here you can specify the functions
     // that should be executed in the threadpool and back in the main thread
     // after the threadpool function completed.
-    int status = uv_queue_work(uv_default_loop(), &baton->request, DoDisconnect, AfterDisconnect);
+    int status = uv_queue_work(uv_default_loop(),
+                               &baton->request,
+                               DoDisconnect,
+                               reinterpret_cast<uv_after_work_cb>(AfterDisconnect));
     assert(status == 0);
 
-    return scope.Close(Undefined());
+    NanReturnUndefined();
 }
 
-Handle<Value> CardReader::Transmit(const Arguments& args) {
+NAN_METHOD(CardReader::Transmit) {
 
-    HandleScope scope;
+    NanScope();
 
     // The first argument is the buffer to be transmitted.
     if (!Buffer::HasInstance(args[0])) {
-        return ThrowException(Exception::TypeError(
-            String::New("First argument must be a Buffer")));
+        NanThrowError("First argument must be a Buffer");
     }
 
     // The second argument is the length of the data to be received
     if (!args[1]->IsUint32()) {
-        return ThrowException(Exception::TypeError(
-            String::New("Second argument must be an integer")));
+        NanThrowError("Second argument must be an integer");
     }
 
     // The third argument is the protocol to be used
     if (!args[2]->IsUint32()) {
-        return ThrowException(Exception::TypeError(
-            String::New("Third argument must be an integer")));
+        NanThrowError("Third argument must be an integer");
     }
 
     // The fourth argument is the callback function
     if (!args[3]->IsFunction()) {
-        return ThrowException(Exception::TypeError(
-            String::New("Fourth argument must be a callback function")));
+        NanThrowError("Fourth argument must be a callback function");
     }
 
     Local<Object> buffer_data = args[0]->ToObject();
@@ -228,7 +204,7 @@ Handle<Value> CardReader::Transmit(const Arguments& args) {
     // This creates our work request, including the libuv struct.
     Baton* baton = new Baton();
     baton->request.data = baton;
-    baton->callback = Persistent<Function>::New(cb);
+    NanAssignPersistent(baton->callback, cb);
     baton->reader = ObjectWrap::Unwrap<CardReader>(args.This());
     TransmitInput *ti = new TransmitInput();
     ti->card_protocol = protocol;
@@ -242,38 +218,37 @@ Handle<Value> CardReader::Transmit(const Arguments& args) {
     // Schedule our work request with libuv. Here you can specify the functions
     // that should be executed in the threadpool and back in the main thread
     // after the threadpool function completed.
-    int status = uv_queue_work(uv_default_loop(), &baton->request, DoTransmit, AfterTransmit);
+    int status = uv_queue_work(uv_default_loop(),
+                               &baton->request,
+                               DoTransmit,
+                               reinterpret_cast<uv_after_work_cb>(AfterTransmit));
     assert(status == 0);
 
-    return scope.Close(Undefined());
+    NanReturnUndefined();
 }
 
-Handle<Value> CardReader::Control(const Arguments& args) {
+NAN_METHOD(CardReader::Control) {
 
-    HandleScope scope;
+    NanScope();
 
     // The first argument is the buffer to be transmitted.
     if (!Buffer::HasInstance(args[0])) {
-        return ThrowException(Exception::TypeError(
-            String::New("First argument must be a Buffer")));
+        NanThrowError("First argument must be a Buffer");
     }
 
     // The second argument is the control code to be used
     if (!args[1]->IsUint32()) {
-        return ThrowException(Exception::TypeError(
-            String::New("Second argument must be an integer")));
+        NanThrowError("Second argument must be an integer");
     }
 
     // The third argument is output buffer
     if (!Buffer::HasInstance(args[2])) {
-        return ThrowException(Exception::TypeError(
-            String::New("First argument must be a Buffer")));
+        NanThrowError("Third argument must be a Buffer");
     }
 
     // The fourth argument is the callback function
     if (!args[3]->IsFunction()) {
-        return ThrowException(Exception::TypeError(
-            String::New("Fourth argument must be a callback function")));
+        NanThrowError("Fourth argument must be a callback function");
     }
 
     Local<Object> in_buf = args[0]->ToObject();
@@ -284,7 +259,7 @@ Handle<Value> CardReader::Control(const Arguments& args) {
     // This creates our work request, including the libuv struct.
     Baton* baton = new Baton();
     baton->request.data = baton;
-    baton->callback = Persistent<Function>::New(cb);
+    NanAssignPersistent(baton->callback, cb);
     baton->reader = ObjectWrap::Unwrap<CardReader>(args.This());
     ControlInput *ci = new ControlInput();
     ci->control_code = control_code;
@@ -297,25 +272,30 @@ Handle<Value> CardReader::Control(const Arguments& args) {
     // Schedule our work request with libuv. Here you can specify the functions
     // that should be executed in the threadpool and back in the main thread
     // after the threadpool function completed.
-    int status = uv_queue_work(uv_default_loop(), &baton->request, DoControl, AfterControl);
+    int status = uv_queue_work(uv_default_loop(),
+                               &baton->request,
+                               DoControl,
+                               reinterpret_cast<uv_after_work_cb>(AfterControl));
     assert(status == 0);
 
-    return scope.Close(Undefined());
+    NanReturnUndefined();
 }
 
-Handle<Value> CardReader::Close(const Arguments& args) {
+NAN_METHOD(CardReader::Close) {
 
-    HandleScope scope;
+    NanScope();
 
     CardReader* obj = ObjectWrap::Unwrap<CardReader>(args.This());
 
     LONG result = SCardCancel(obj->m_status_card_context);
     obj->m_status_card_context = 0;
 
-    return scope.Close(Integer::New(result));
+    NanReturnValue(NanNew<Integer>(result));
 }
 
 void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
+
+    NanScope();
 
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     AsyncResult* ar = async_baton->async_result;
@@ -325,28 +305,28 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
         /* Emit end event */
         Handle<Value> argv[1] = {
-            String::New("end"), // event name
+            NanNew("end"), // event name
         };
 
-        MakeCallback(async_baton->reader->handle_, "emit", 1, argv);
+        NanMakeCallback(NanObjectWrapHandle(async_baton->reader), "emit", 1, argv);
         return;
     }
 
     if (ar->result == SCARD_S_SUCCESS) {
         const unsigned argc = 3;
         Handle<Value> argv[argc] = {
-            Undefined(), // argument
-            Integer::New(ar->status),
-            CreateBufferInstance(reinterpret_cast<char*>(ar->atr), ar->atrlen)
+            NanUndefined(), // argument
+            NanNew<Integer>(ar->status),
+            NanNewBufferHandle(reinterpret_cast<char*>(ar->atr), ar->atrlen)
         };
 
-        PerformCallback(async_baton->reader->handle_, async_baton->callback, argc, argv);
+        NanCallback(NanNew(async_baton->callback)).Call(argc, argv);
     } else {
-        Local<Value> err = Exception::Error(String::New(pcsc_stringify_error(ar->result)));
+        Local<Value> err = NanError(pcsc_stringify_error(ar->result));
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
-        PerformCallback(async_baton->reader->handle_, async_baton->callback, argc, argv);
+        NanCallback(NanNew(async_baton->callback)).Call(argc, argv);
     }
 }
 
@@ -423,36 +403,32 @@ void CardReader::DoConnect(uv_work_t* req) {
     baton->result = cr;
 }
 
-#if NODE_VERSION_AT_LEAST(0, 9, 4)
 void CardReader::AfterConnect(uv_work_t* req, int status) {
-#else
-void CardReader::AfterConnect(uv_work_t* req) {
-#endif
 
-    HandleScope scope;
+    NanScope();
     Baton* baton = static_cast<Baton*>(req->data);
     ConnectInput *ci = static_cast<ConnectInput*>(baton->input);
     ConnectResult *cr = static_cast<ConnectResult*>(baton->result);
 
     if (cr->result) {
-        Local<Value> err = Exception::Error(String::New(pcsc_stringify_error(cr->result)));
+        Local<Value> err = NanError(pcsc_stringify_error(cr->result));
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
-        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
     } else {
-        baton->reader->handle_->Set(connected_symbol, Boolean::New(true));
+        NanObjectWrapHandle(baton->reader)->Set(NanNew(connected_symbol), NanTrue());
         const unsigned argc = 2;
         Handle<Value> argv[argc] = {
-            Local<Value>::New(Null()),
-            Integer::New(cr->card_protocol)
+            NanNull(),
+            NanNew<Integer>(cr->card_protocol)
         };
 
-        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
     }
 
     // The callback is a permanent handle, so we have to dispose of it manually.
-    baton->callback.Dispose();
+    NanDisposePersistent(baton->callback);
     delete ci;
     delete cr;
     delete baton;
@@ -481,35 +457,31 @@ void CardReader::DoDisconnect(uv_work_t* req) {
     baton->result = reinterpret_cast<void*>(result);
 }
 
-#if NODE_VERSION_AT_LEAST(0, 9, 4)
 void CardReader::AfterDisconnect(uv_work_t* req, int status) {
-#else
-void CardReader::AfterDisconnect(uv_work_t* req) {
-#endif
 
-    HandleScope scope;
+    NanScope();
     Baton* baton = static_cast<Baton*>(req->data);
     LONG result = reinterpret_cast<LONG>(baton->result);
 
     if (result) {
-        Local<Value> err = Exception::Error(String::New(pcsc_stringify_error(result)));
+        Local<Value> err = NanError(pcsc_stringify_error(result));
 
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
-        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
     } else {
-        baton->reader->handle_->Set(connected_symbol, Boolean::New(false));
+        NanObjectWrapHandle(baton->reader)->Set(NanNew(connected_symbol), NanFalse());
         const unsigned argc = 1;
         Handle<Value> argv[argc] = {
-            Local<Value>::New(Null())
+            NanNull()
         };
 
-        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
     }
 
     // The callback is a permanent handle, so we have to dispose of it manually.
-    baton->callback.Dispose();
+    NanDisposePersistent(baton->callback);
 
     delete baton;
 }
@@ -543,37 +515,33 @@ void CardReader::DoTransmit(uv_work_t* req) {
     baton->result = tr;
 }
 
-#if NODE_VERSION_AT_LEAST(0, 9, 4)
 void CardReader::AfterTransmit(uv_work_t* req, int status) {
-#else
-void CardReader::AfterTransmit(uv_work_t* req) {
-#endif
 
-    HandleScope scope;
+    NanScope();
     Baton* baton = static_cast<Baton*>(req->data);
     TransmitInput *ti = static_cast<TransmitInput*>(baton->input);
     TransmitResult *tr = static_cast<TransmitResult*>(baton->result);
 
     if (tr->result) {
-        Local<Value> err = Exception::Error(String::New(pcsc_stringify_error(tr->result)));
+        Local<Value> err = NanError(pcsc_stringify_error(tr->result));
 
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
-        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
     } else {
         const unsigned argc = 2;
         Handle<Value> argv[argc] = {
-            Local<Value>::New(Null()),
-            CreateBufferInstance(reinterpret_cast<char*>(tr->data), tr->len)
+            NanNull(),
+            NanNewBufferHandle(reinterpret_cast<char*>(tr->data), tr->len)
         };
 
-        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
     }
 
 
     // The callback is a permanent handle, so we have to dispose of it manually.
-    baton->callback.Dispose();
+    NanDisposePersistent(baton->callback);
     delete [] ti->in_data;
     delete ti;
     delete [] tr->data;
@@ -611,37 +579,33 @@ void CardReader::DoControl(uv_work_t* req) {
     baton->result = cr;
 }
 
-#if NODE_VERSION_AT_LEAST(0, 9, 4)
 void CardReader::AfterControl(uv_work_t* req, int status) {
-#else
-void CardReader::AfterControl(uv_work_t* req) {
-#endif
 
-    HandleScope scope;
+    NanScope();
     Baton* baton = static_cast<Baton*>(req->data);
     ControlInput *ci = static_cast<ControlInput*>(baton->input);
     ControlResult *cr = static_cast<ControlResult*>(baton->result);
 
     if (cr->result) {
-        Local<Value> err = Exception::Error(String::New(pcsc_stringify_error(cr->result)));
+        Local<Value> err = NanError(pcsc_stringify_error(cr->result));
 
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
-        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
     } else {
         const unsigned argc = 2;
         Handle<Value> argv[argc] = {
-            Local<Value>::New(Null()),
-            Integer::New(cr->len)
+            NanNull(),
+            NanNew<Integer>(cr->len)
         };
 
-        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
     }
 
 
     // The callback is a permanent handle, so we have to dispose of it manually.
-    baton->callback.Dispose();
+    NanDisposePersistent(baton->callback);
     delete ci;
     delete cr;
     delete baton;
@@ -653,26 +617,7 @@ void CardReader::CloseCallback(uv_handle_t *handle) {
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     AsyncResult* ar = async_baton->async_result;
     delete ar;
-    async_baton->callback.Dispose();
+    NanDisposePersistent(async_baton->callback);
     SCardReleaseContext(async_baton->reader->m_status_card_context);
     delete async_baton;
-}
-
-Handle<Value> CardReader::CreateBufferInstance(char* data, unsigned long size) {
-    if (size == 0) {
-        return Undefined();
-    }
-
-    // get Buffer from global scope.
-    Local<Object> global = Context::GetCurrent()->Global();
-    Local<Value> bv = global->Get(String::NewSymbol("Buffer"));
-    assert(bv->IsFunction());
-    Local<Function> b = Local<Function>::Cast(bv);
-    Handle<Value> argv[3] = {
-        Buffer::New(data, size)->handle_,
-        Integer::New(size),
-        Integer::New(0)
-    };
-
-    return b->NewInstance(3, argv);
 }

@@ -1,7 +1,7 @@
 #ifndef CARDREADER_H
 #define CARDREADER_H
 
-#include <node.h>
+#include <nan.h>
 #include <node_version.h>
 #include <winscard.h>
 #include <string>
@@ -84,13 +84,14 @@ class CardReader: public node::ObjectWrap {
         ~CardReader();
 
         static v8::Persistent<v8::Function> constructor;
-        static v8::Handle<v8::Value> New(const v8::Arguments& args);
-        static v8::Handle<v8::Value> GetStatus(const v8::Arguments& args);
-        static v8::Handle<v8::Value> Connect(const v8::Arguments& args);
-        static v8::Handle<v8::Value> Disconnect(const v8::Arguments& args);
-        static v8::Handle<v8::Value> Transmit(const v8::Arguments& args);
-        static v8::Handle<v8::Value> Control(const v8::Arguments& args);
-        static v8::Handle<v8::Value> Close(const v8::Arguments& args);
+
+        static NAN_METHOD(New);
+        static NAN_METHOD(GetStatus);
+        static NAN_METHOD(Connect);
+        static NAN_METHOD(Disconnect);
+        static NAN_METHOD(Transmit);
+        static NAN_METHOD(Control);
+        static NAN_METHOD(Close);
 
         static void HandleReaderStatusChange(uv_async_t *handle, int status);
         static void* HandlerFunction(void* arg);
@@ -100,18 +101,10 @@ class CardReader: public node::ObjectWrap {
         static void DoControl(uv_work_t* req);
         static void CloseCallback(uv_handle_t *handle);
 
-#if NODE_VERSION_AT_LEAST(0, 9, 4)
         static void AfterConnect(uv_work_t* req, int status);
         static void AfterDisconnect(uv_work_t* req, int status);
         static void AfterTransmit(uv_work_t* req, int status);
         static void AfterControl(uv_work_t* req, int status);
-#else
-        static void AfterConnect(uv_work_t* req);
-        static void AfterDisconnect(uv_work_t* req);
-        static void AfterTransmit(uv_work_t* req);
-        static void AfterControl(uv_work_t* req);
-#endif
-
 
         static v8::Handle<v8::Value> CreateBufferInstance(char* data, unsigned long size);
 

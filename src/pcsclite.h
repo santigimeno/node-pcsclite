@@ -1,7 +1,8 @@
 #ifndef PCSCLITE_H
 #define PCSCLITE_H
 
-#include <node.h>
+#include <nan.h>
+
 #include <winscard.h>
 
 class PCSCLite: public node::ObjectWrap {
@@ -31,9 +32,9 @@ class PCSCLite: public node::ObjectWrap {
         ~PCSCLite();
 
         static v8::Persistent<v8::Function> constructor;
-        static v8::Handle<v8::Value> New(const v8::Arguments& args);
-        static v8::Handle<v8::Value> Start(const v8::Arguments& args);
-        static v8::Handle<v8::Value> Close(const v8::Arguments& args);
+        static NAN_METHOD(New);
+        static NAN_METHOD(Start);
+        static NAN_METHOD(Close);
 
         static void HandleReaderStatusChange(uv_async_t *handle, int status);
         static void* HandlerFunction(void* arg);
