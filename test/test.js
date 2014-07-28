@@ -1,7 +1,6 @@
 var should = require('should');
 var sinon = require('sinon');
 var pcsc = require('../lib/pcsclite');
-var assert = require('assert');
 
 describe('Testing PCSCLite private', function() {
 
