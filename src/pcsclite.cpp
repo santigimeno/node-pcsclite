@@ -31,9 +31,6 @@ PCSCLite::PCSCLite(): m_card_context(0) {
 }
 
 PCSCLite::~PCSCLite() {
-
-    fprintf(stderr, "PCSCLite destructor\n");
-
     if (m_card_context) {
         SCardReleaseContext(m_card_context);
     }

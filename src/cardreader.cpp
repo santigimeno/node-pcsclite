@@ -42,15 +42,12 @@ CardReader::CardReader(const std::string &reader_name): m_card_context(0),
 
 CardReader::~CardReader() {
 
-    fprintf(stderr, "CARDREADER destructor\n");
-
     if (m_card_context) {
         SCardReleaseContext(m_card_context);
     }
 
     if (m_status_card_context) {
         LONG result = SCardCancel(m_status_card_context);
-        fprintf(stderr, "RESULT:  0x%.8lx", result);
     }
 
     pthread_mutex_destroy(&m_mutex);
