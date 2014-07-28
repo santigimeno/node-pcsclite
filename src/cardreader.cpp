@@ -27,6 +27,7 @@ void CardReader::init(Handle<Object> target) {
     NODE_SET_PROTOTYPE_METHOD(tpl, "_connect", Connect);
     NODE_SET_PROTOTYPE_METHOD(tpl, "_disconnect", Disconnect);
     NODE_SET_PROTOTYPE_METHOD(tpl, "_transmit", Transmit);
+    NODE_SET_PROTOTYPE_METHOD(tpl, "_control", Control);
     NODE_SET_PROTOTYPE_METHOD(tpl, "close", Close);
 
     constructor = Persistent<Function>::New(tpl->GetFunction());
@@ -190,6 +191,61 @@ Handle<Value> CardReader::Transmit(const Arguments& args) {
     // that should be executed in the threadpool and back in the main thread
     // after the threadpool function completed.
     int status = uv_queue_work(uv_default_loop(), &baton->request, DoTransmit, AfterTransmit);
+    assert(status == 0);
+
+    return scope.Close(Undefined());
+}
+
+Handle<Value> CardReader::Control(const Arguments& args) {
+
+    HandleScope scope;
+
+    // The first argument is the buffer to be transmitted.
+    if (!Buffer::HasInstance(args[0])) {
+        return ThrowException(Exception::TypeError(
+            String::New("First argument must be a Buffer")));
+    }
+
+    // The second argument is the control code to be used
+    if (!args[1]->IsUint32()) {
+        return ThrowException(Exception::TypeError(
+            String::New("Second argument must be an integer")));
+    }
+
+    // The third argument is output buffer
+    if (!Buffer::HasInstance(args[2])) {
+        return ThrowException(Exception::TypeError(
+            String::New("First argument must be a Buffer")));
+    }
+
+    // The fourth argument is the callback function
+    if (!args[3]->IsFunction()) {
+        return ThrowException(Exception::TypeError(
+            String::New("Fourth argument must be a callback function")));
+    }
+
+    Local<Object> in_buf = args[0]->ToObject();
+    DWORD control_code = args[1]->Uint32Value();
+    Local<Object> out_buf = args[2]->ToObject();
+    Local<Function> cb = Local<Function>::Cast(args[3]);
+
+    // This creates our work request, including the libuv struct.
+    Baton* baton = new Baton();
+    baton->request.data = baton;
+    baton->callback = Persistent<Function>::New(cb);
+    baton->reader = ObjectWrap::Unwrap<CardReader>(args.This());
+    ControlInput *ci = new ControlInput();
+    ci->control_code = control_code;
+    ci->in_data = Buffer::Data(in_buf);
+    ci->in_len = Buffer::Length(in_buf);
+    ci->out_data = Buffer::Data(out_buf);
+    ci->out_len = Buffer::Length(out_buf);
+    baton->input = ci;
+
+    // Schedule our work request with libuv. Here you can specify the functions
+    // that should be executed in the threadpool and back in the main thread
+    // after the threadpool function completed.
+    int status = uv_queue_work(uv_default_loop(), &baton->request, DoControl, AfterControl);
     assert(status == 0);
 
     return scope.Close(Undefined());
@@ -464,6 +520,72 @@ void CardReader::AfterTransmit(uv_work_t* req) {
     delete ti;
     delete [] tr->data;
     delete tr;
+    delete baton;
+}
+
+void CardReader::DoControl(uv_work_t* req) {
+
+    Baton* baton = static_cast<Baton*>(req->data);
+    ControlInput *ci = static_cast<ControlInput*>(baton->input);
+    CardReader* obj = baton->reader;
+
+    ControlResult *cr = new ControlResult();
+    LONG result = SCARD_E_INVALID_HANDLE;
+
+    /* Lock mutex */
+    pthread_mutex_lock(&obj->m_mutex);
+    /* Connected? */
+    if (obj->m_card_handle) {
+        result = SCardControl(obj->m_card_handle,
+                              ci->control_code,
+                              ci->in_data,
+                              ci->in_len,
+                              ci->out_data,
+                              ci->out_len,
+                              &cr->len);
+    }
+
+    /* Unlock the mutex */
+    pthread_mutex_unlock(&obj->m_mutex);
+
+    cr->result = result;
+
+    baton->result = cr;
+}
+
+#if NODE_VERSION_AT_LEAST(0, 9, 4)
+void CardReader::AfterControl(uv_work_t* req, int status) {
+#else
+void CardReader::AfterControl(uv_work_t* req) {
+#endif
+
+    HandleScope scope;
+    Baton* baton = static_cast<Baton*>(req->data);
+    ControlInput *ci = static_cast<ControlInput*>(baton->input);
+    ControlResult *cr = static_cast<ControlResult*>(baton->result);
+
+    if (cr->result) {
+        Local<Value> err = Exception::Error(String::New(pcsc_stringify_error(cr->result)));
+
+        // Prepare the parameters for the callback function.
+        const unsigned argc = 1;
+        Handle<Value> argv[argc] = { err };
+        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+    } else {
+        const unsigned argc = 2;
+        Handle<Value> argv[argc] = {
+            Local<Value>::New(Null()),
+            Integer::New(cr->len)
+        };
+
+        PerformCallback(baton->reader->handle_, baton->callback, argc, argv);
+    }
+
+
+    // The callback is a permanent handle, so we have to dispose of it manually.
+    baton->callback.Dispose();
+    delete ci;
+    delete cr;
     delete baton;
 }
 

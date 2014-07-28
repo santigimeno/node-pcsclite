@@ -39,6 +39,19 @@ class CardReader: public node::ObjectWrap {
         unsigned long len;
     };
 
+    struct ControlInput {
+        DWORD control_code;
+        LPCVOID in_data;
+        DWORD in_len;
+        LPVOID out_data;
+        DWORD out_len;
+    };
+
+    struct ControlResult {
+        LONG result;
+        unsigned long len;
+    };
+
     struct AsyncResult {
         LONG result;
         unsigned long status;
@@ -71,6 +84,7 @@ class CardReader: public node::ObjectWrap {
         static v8::Handle<v8::Value> Connect(const v8::Arguments& args);
         static v8::Handle<v8::Value> Disconnect(const v8::Arguments& args);
         static v8::Handle<v8::Value> Transmit(const v8::Arguments& args);
+        static v8::Handle<v8::Value> Control(const v8::Arguments& args);
         static v8::Handle<v8::Value> Close(const v8::Arguments& args);
 
         static void HandleReaderStatusChange(uv_async_t *handle, int status);
@@ -78,16 +92,19 @@ class CardReader: public node::ObjectWrap {
         static void DoConnect(uv_work_t* req);
         static void DoDisconnect(uv_work_t* req);
         static void DoTransmit(uv_work_t* req);
+        static void DoControl(uv_work_t* req);
         static void CloseCallback(uv_handle_t *handle);
 
 #if NODE_VERSION_AT_LEAST(0, 9, 4)
         static void AfterConnect(uv_work_t* req, int status);
         static void AfterDisconnect(uv_work_t* req, int status);
         static void AfterTransmit(uv_work_t* req, int status);
+        static void AfterControl(uv_work_t* req, int status);
 #else
         static void AfterConnect(uv_work_t* req);
         static void AfterDisconnect(uv_work_t* req);
         static void AfterTransmit(uv_work_t* req);
+        static void AfterControl(uv_work_t* req);
 #endif
 
 
