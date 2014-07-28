@@ -10,7 +10,7 @@
         "test": "test"
     },
     "dependencies": {
-        "buffertools": "~1.1.1",
+        "buffertools": "^2.1.2",
         "bindings": "~1.1.0"
     },
     "devDependencies": {
