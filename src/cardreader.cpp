@@ -87,7 +87,7 @@ CardReader::~CardReader() {
     }
 
     if (m_status_card_context) {
-        LONG result = SCardCancel(m_status_card_context);
+        SCardCancel(m_status_card_context);
     }
 
     pthread_mutex_destroy(&m_mutex);
