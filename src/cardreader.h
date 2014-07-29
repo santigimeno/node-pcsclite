@@ -21,9 +21,14 @@ class CardReader: public node::ObjectWrap {
         void *result;
     };
 
+    struct ConnectInput {
+        DWORD share_mode;
+        DWORD pref_protocol;
+    };
+
     struct ConnectResult {
         LONG result;
-        unsigned long card_protocol;
+        DWORD card_protocol;
     };
 
     struct TransmitInput {
