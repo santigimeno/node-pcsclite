@@ -108,25 +108,28 @@ Emitted when the card reader has been removed.
 #### Event:  'status'
 
 * *status* `Object`.
-    * *state* The current status of the card reader as returned by `SCardGetStatusChange`
+    * *state* The current status of the card reader as returned by [`SCardGetStatusChange`](http://pcsclite.alioth.debian.org/pcsc-lite/node20.html)
     * *atr* ATR of the card inserted (if any)
 
 Emitted whenever the status of the reader changes.
 
-#### reader.connect(callback)
+#### reader.connect([options], callback)
 
+* *options* `Object` Optional
+    * *share_mode* `Number` Shared mode. Defaults to `SCARD_SHARE_EXCLUSIVE`
+    * *protocol* `Number` Preferred protocol. Defaults to `SCARD_PROTOCOL_T0 | SCARD_PROTOCOL_T1`
 * *callback* `Function` called when connection operation ends
     * *error* `Error`
     * *protocol* `Number` Established protocol to this connection.
 
-Wrapper around `SCardConnect`. Establishes a connection to the reader.
+Wrapper around [`SCardConnect`](http://pcsclite.alioth.debian.org/pcsc-lite/node12.html). Establishes a connection to the reader.
 
 #### reader.disconnect(callback)
 
 * *callback* `Function` called when disconnection operation ends
     * *error* `Error`
 
-Wrapper around `SCardDisconnect`. Terminates a connection to the reader.
+Wrapper around [`SCardDisconnect`](http://pcsclite.alioth.debian.org/pcsc-lite/node14.html). Terminates a connection to the reader.
 
 #### reader.transmit(input, res_len, protocol, callback)
 
@@ -137,7 +140,7 @@ Wrapper around `SCardDisconnect`. Terminates a connection to the reader.
     * *error* `Error`
     * *output* `Buffer`
 
-Wrapper around `SCardTransmit`. Sends an APDU to the smart card contained in the reader connected to.
+Wrapper around [`SCardTransmit`](http://pcsclite.alioth.debian.org/pcsc-lite/node17.html). Sends an APDU to the smart card contained in the reader connected to.
 
 #### reader.control(input, control_code, res_len, callback)
 
@@ -148,4 +151,4 @@ Wrapper around `SCardTransmit`. Sends an APDU to the smart card contained in the
     * *error* `Error`
     * *output* `Buffer`
 
-Wrapper around `SCardControl`. Sends a command directly to the IFD Handler (reader driver) to be processed by the reader.
+Wrapper around [`SCardControl`](http://pcsclite.alioth.debian.org/pcsc-lite/node18.html). Sends a command directly to the IFD Handler (reader driver) to be processed by the reader.

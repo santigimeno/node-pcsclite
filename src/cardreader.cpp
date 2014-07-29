@@ -30,6 +30,46 @@ void CardReader::init(Handle<Object> target) {
     NODE_SET_PROTOTYPE_METHOD(tpl, "_control", Control);
     NODE_SET_PROTOTYPE_METHOD(tpl, "close", Close);
 
+    // PCSCLite constants
+    // Share Mode
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_SHARE_SHARED"),
+                                  Integer::New(SCARD_SHARE_SHARED));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_SHARE_EXCLUSIVE"),
+                                  Integer::New(SCARD_SHARE_EXCLUSIVE));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_SHARE_DIRECT"),
+                                  Integer::New(SCARD_SHARE_DIRECT));
+    // Protocol
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_PROTOCOL_T0"),
+                                  Integer::New(SCARD_PROTOCOL_T0));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_PROTOCOL_T1"),
+                                  Integer::New(SCARD_PROTOCOL_T1));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_PROTOCOL_RAW"),
+                                  Integer::New(SCARD_PROTOCOL_RAW));
+    //  State
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_UNAWARE"),
+                                  Integer::New(SCARD_STATE_UNAWARE));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_IGNORE"),
+                                  Integer::New(SCARD_STATE_IGNORE));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_CHANGED"),
+                                  Integer::New(SCARD_STATE_CHANGED));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_UNKNOWN"),
+                                  Integer::New(SCARD_STATE_UNKNOWN));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_UNAVAILABLE"),
+                                  Integer::New(SCARD_STATE_UNAVAILABLE));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_EMPTY"),
+                                  Integer::New(SCARD_STATE_EMPTY));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_PRESENT"),
+                                  Integer::New(SCARD_STATE_PRESENT));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_ATRMATCH"),
+                                  Integer::New(SCARD_STATE_ATRMATCH));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_EXCLUSIVE"),
+                                  Integer::New(SCARD_STATE_EXCLUSIVE));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_INUSE"),
+                                  Integer::New(SCARD_STATE_INUSE));
+    tpl->PrototypeTemplate()->Set(String::NewSymbol("SCARD_STATE_MUTE"),
+                                  Integer::New(SCARD_STATE_MUTE));
+
+
     constructor = Persistent<Function>::New(tpl->GetFunction());
     target->Set(String::NewSymbol("CardReader"), constructor);
 }
@@ -89,18 +129,33 @@ Handle<Value> CardReader::Connect(const Arguments& args) {
 
     HandleScope scope;
 
-    if (!args[0]->IsFunction()) {
+    // The second argument is the length of the data to be received
+    if (!args[0]->IsUint32()) {
         return ThrowException(Exception::TypeError(
-            String::New("First argument must be a callback function")));
+            String::New("First argument must be an integer")));
     }
 
-    Local<Function> cb = Local<Function>::Cast(args[0]);
+    if (!args[1]->IsUint32()) {
+        return ThrowException(Exception::TypeError(
+            String::New("Second argument must be an integer")));
+    }
+
+    if (!args[2]->IsFunction()) {
+        return ThrowException(Exception::TypeError(
+            String::New("Third argument must be a callback function")));
+    }
+
+    ConnectInput* ci = new ConnectInput();
+    ci->share_mode = args[0]->Uint32Value();
+    ci->pref_protocol = args[1]->Uint32Value();
+    Local<Function> cb = Local<Function>::Cast(args[2]);
 
     // This creates our work request, including the libuv struct.
     Baton* baton = new Baton();
     baton->request.data = baton;
     baton->callback = Persistent<Function>::New(cb);
     baton->reader = ObjectWrap::Unwrap<CardReader>(args.This());
+    baton->input = ci;
 
     // Schedule our work request with libuv. Here you can specify the functions
     // that should be executed in the threadpool and back in the main thread
@@ -333,6 +388,7 @@ void* CardReader::HandlerFunction(void* arg) {
 void CardReader::DoConnect(uv_work_t* req) {
 
     Baton* baton = static_cast<Baton*>(req->data);
+    ConnectInput *ci = static_cast<ConnectInput*>(baton->input);
 
     unsigned long card_protocol;
     LONG result = SCARD_S_SUCCESS;
@@ -347,9 +403,12 @@ void CardReader::DoConnect(uv_work_t* req) {
 
     /* Connect */
     if (result == SCARD_S_SUCCESS) {
-        result = SCardConnect(obj->m_card_context, obj->m_name.c_str(),
-                              SCARD_SHARE_EXCLUSIVE, SCARD_PROTOCOL_T0 | SCARD_PROTOCOL_T1,
-                              &obj->m_card_handle, &card_protocol);
+        result = SCardConnect(obj->m_card_context,
+                              obj->m_name.c_str(),
+                              ci->share_mode,
+                              ci->pref_protocol,
+                              &obj->m_card_handle,
+                              &card_protocol);
     }
 
     /* Unlock the mutex */
@@ -372,6 +431,7 @@ void CardReader::AfterConnect(uv_work_t* req) {
 
     HandleScope scope;
     Baton* baton = static_cast<Baton*>(req->data);
+    ConnectInput *ci = static_cast<ConnectInput*>(baton->input);
     ConnectResult *cr = static_cast<ConnectResult*>(baton->result);
 
     if (cr->result) {
@@ -393,6 +453,7 @@ void CardReader::AfterConnect(uv_work_t* req) {
 
     // The callback is a permanent handle, so we have to dispose of it manually.
     baton->callback.Dispose();
+    delete ci;
     delete cr;
     delete baton;
 }
