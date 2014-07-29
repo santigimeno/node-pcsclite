@@ -108,7 +108,7 @@ Emitted when the card reader has been removed.
 #### Event:  'status'
 
 * *status* `Object`.
-    * *state* The current status of the card reader as returned by `[SCardGetStatusChange](http://pcsclite.alioth.debian.org/pcsc-lite/node20.html)`
+    * *state* The current status of the card reader as returned by [`SCardGetStatusChange`](http://pcsclite.alioth.debian.org/pcsc-lite/node20.html)
     * *atr* ATR of the card inserted (if any)
 
 Emitted whenever the status of the reader changes.
@@ -122,33 +122,33 @@ Emitted whenever the status of the reader changes.
     * *error* `Error`
     * *protocol* `Number` Established protocol to this connection.
 
-Wrapper around `[SCardConnect](http://pcsclite.alioth.debian.org/pcsc-lite/node12.html)`. Establishes a connection to the reader.
+Wrapper around [`SCardConnect`](http://pcsclite.alioth.debian.org/pcsc-lite/node12.html). Establishes a connection to the reader.
 
 #### reader.disconnect(callback)
 
 * *callback* `Function` called when disconnection operation ends
     * *error* `Error`
 
-Wrapper around `[SCardDisconnect](http://pcsclite.alioth.debian.org/pcsc-lite/node14.html)`. Terminates a connection to the reader.
+Wrapper around [`SCardDisconnect`](http://pcsclite.alioth.debian.org/pcsc-lite/node14.html). Terminates a connection to the reader.
 
 #### reader.transmit(input, res_len, protocol, callback)
 
 * *input* `Buffer` input data to be transmitted
 * *res_len* `Number`. Max. expected length of the response
 * *protocol* `Number`. Protocol to be used in the transmission
-* *callback* `Function` called when disconnection operation ends
+* *callback* `Function` called when transmit operation ends
     * *error* `Error`
     * *output* `Buffer`
 
-Wrapper around `[SCardTransmit](http://pcsclite.alioth.debian.org/pcsc-lite/node17.html)`. Sends an APDU to the smart card contained in the reader connected to.
+Wrapper around [`SCardTransmit`](http://pcsclite.alioth.debian.org/pcsc-lite/node17.html). Sends an APDU to the smart card contained in the reader connected to.
 
 #### reader.control(input, control_code, res_len, callback)
 
 * *input* `Buffer` input data to be transmitted
 * *control_code* `Number`. Control code for the operation
 * *res_len* `Number`. Max. expected length of the response
-* *callback* `Function` called when disconnection operation ends
+* *callback* `Function` called when control operation ends
     * *error* `Error`
     * *output* `Buffer`
 
-Wrapper around `[SCardControl](http://pcsclite.alioth.debian.org/pcsc-lite/node18.html)`. Sends a command directly to the IFD Handler (reader driver) to be processed by the reader.
+Wrapper around [`SCardControl`](http://pcsclite.alioth.debian.org/pcsc-lite/node18.html). Sends a command directly to the IFD Handler (reader driver) to be processed by the reader.
