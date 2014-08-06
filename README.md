@@ -78,7 +78,7 @@ pcsc.on('error', function(err) {
 
 ## API
 
-### Class: ChildProcess
+### Class: PCSCLite
 
 The PCSCLite object is an EventEmitter that notifies the existence of Card Readers.
 
