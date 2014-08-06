@@ -16,7 +16,7 @@ pcsc.on('reader', function(reader) {
         if (changes) {
             if ((changes & this.SCARD_STATE_EMPTY) && (status.state & this.SCARD_STATE_EMPTY)) {
                 console.log("card removed");/* card removed */
-                reader.disconnect(function(err) {
+                reader.disconnect(reader.SCARD_LEAVE_CARD, function(err) {
                     if (err) {
                         console.log(err);
                     } else {

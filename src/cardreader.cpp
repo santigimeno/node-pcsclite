@@ -48,6 +48,12 @@ void CardReader::init(Handle<Object> target) {
     NanSetPrototypeTemplate(tpl, "SCARD_STATE_INUSE", NanNew(SCARD_STATE_INUSE));
     NanSetPrototypeTemplate(tpl, "SCARD_STATE_MUTE", NanNew(SCARD_STATE_MUTE));
 
+    // Disconnect disposition
+    NanSetPrototypeTemplate(tpl, "SCARD_LEAVE_CARD", NanNew(SCARD_LEAVE_CARD));
+    NanSetPrototypeTemplate(tpl, "SCARD_RESET_CARD", NanNew(SCARD_RESET_CARD));
+    NanSetPrototypeTemplate(tpl, "SCARD_STATE_CHANGED", NanNew(SCARD_STATE_CHANGED));
+    NanSetPrototypeTemplate(tpl, "SCARD_UNPOWER_CARD", NanNew(SCARD_UNPOWER_CARD));
+
     NanAssignPersistent<Function>(constructor, tpl->GetFunction());
     target->Set(NanNew("CardReader"), tpl->GetFunction());
 }
@@ -148,14 +154,20 @@ NAN_METHOD(CardReader::Disconnect) {
 
     NanScope();
 
-    if (!args[0]->IsFunction()) {
-        NanThrowError("First argument must be a callback function");
+    if (!args[0]->IsUint32()) {
+        NanThrowError("First argument must be an integer");
     }
 
-    Local<Function> cb = Local<Function>::Cast(args[0]);
+    if (!args[1]->IsFunction()) {
+        NanThrowError("Second argument must be a callback function");
+    }
+
+    DWORD disposition = args[0]->Uint32Value();
+    Local<Function> cb = Local<Function>::Cast(args[1]);
 
     // This creates our work request, including the libuv struct.
     Baton* baton = new Baton();
+    baton->input = reinterpret_cast<void*>(disposition);
     baton->request.data = baton;
     NanAssignPersistent(baton->callback, cb);
     baton->reader = ObjectWrap::Unwrap<CardReader>(args.This());
@@ -437,6 +449,7 @@ void CardReader::AfterConnect(uv_work_t* req, int status) {
 void CardReader::DoDisconnect(uv_work_t* req) {
 
     Baton* baton = static_cast<Baton*>(req->data);
+    DWORD disposition = reinterpret_cast<DWORD>(baton->input);
 
     LONG result = SCARD_S_SUCCESS;
     CardReader* obj = baton->reader;
@@ -445,7 +458,7 @@ void CardReader::DoDisconnect(uv_work_t* req) {
     pthread_mutex_lock(&obj->m_mutex);
     /* Connect */
     if (obj->m_card_handle) {
-        result = SCardDisconnect(obj->m_card_handle, SCARD_UNPOWER_CARD);
+        result = SCardDisconnect(obj->m_card_handle, disposition);
         if (result == SCARD_S_SUCCESS) {
             obj->m_card_handle = 0;
         }

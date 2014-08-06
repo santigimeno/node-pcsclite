@@ -35,7 +35,7 @@ pcsc.on('reader', function(reader) {
         if (changes) {
             if ((changes & this.SCARD_STATE_EMPTY) && (status.state & this.SCARD_STATE_EMPTY)) {
                 console.log("card removed");/* card removed */
-                reader.disconnect(function(err) {
+                reader.disconnect(reader.SCARD_LEAVE_CARD, function(err) {
                     if (err) {
                         console.log(err);
                     } else {
@@ -124,8 +124,9 @@ Emitted whenever the status of the reader changes.
 
 Wrapper around [`SCardConnect`](http://pcsclite.alioth.debian.org/pcsc-lite/node12.html). Establishes a connection to the reader.
 
-#### reader.disconnect(callback)
+#### reader.disconnect(disposition, callback)
 
+* *disposition* `Number`. Reader function to execute. Defaults to `SCARD_UNPOWER_CARD`
 * *callback* `Function` called when disconnection operation ends
     * *error* `Error`
 
