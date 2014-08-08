@@ -4,7 +4,6 @@
 #include <nan.h>
 #include <node_version.h>
 #include <string>
-#include <pthread.h>
 #ifdef __APPLE__
 #include <PCSC/winscard.h>
 #include <PCSC/wintypes.h>
@@ -100,7 +99,7 @@ class CardReader: public node::ObjectWrap {
         static NAN_METHOD(Close);
 
         static void HandleReaderStatusChange(uv_async_t *handle, int status);
-        static void* HandlerFunction(void* arg);
+        static void HandlerFunction(void* arg);
         static void DoConnect(uv_work_t* req);
         static void DoDisconnect(uv_work_t* req);
         static void DoTransmit(uv_work_t* req);
@@ -120,8 +119,10 @@ class CardReader: public node::ObjectWrap {
         SCARDCONTEXT m_status_card_context;
         SCARDHANDLE m_card_handle;
         std::string m_name;
-        pthread_t m_status_thread;
-        pthread_mutex_t m_mutex;
+        uv_thread_t m_status_thread;
+        uv_mutex_t m_mutex;
+        uv_cond_t m_cond;
+        int m_state;
 };
 
 #endif /* CARDREADER_H */

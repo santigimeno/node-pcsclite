@@ -24,9 +24,10 @@ void PCSCLite::init(Handle<Object> target) {
 PCSCLite::PCSCLite(): m_card_context(0),
                       m_card_reader_state(),
                       m_status_thread(0),
-                      m_closing(false) {
+                      m_state(0) {
 
-    pthread_mutex_init(&m_mutex, NULL);
+    assert(uv_mutex_init(&m_mutex) == 0);
+    assert(uv_cond_init(&m_cond) == 0);
 
     LONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM,
                                         NULL,
@@ -51,13 +52,14 @@ PCSCLite::PCSCLite(): m_card_context(0),
 }
 
 PCSCLite::~PCSCLite() {
-    if (m_card_context) {
-        SCardReleaseContext(m_card_context);
+
+    if (m_status_thread) {
+        int ret = uv_thread_join(&m_status_thread);
+        assert(ret == 0);
     }
 
-    pthread_mutex_destroy(&m_mutex);
-    if (m_status_thread) {
-        pthread_cancel(m_status_thread);
+    if (m_card_context) {
+        SCardReleaseContext(m_card_context);
     }
 }
 
@@ -81,8 +83,8 @@ NAN_METHOD(PCSCLite::Start) {
     async_baton->pcsclite = obj;
 
     uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
-    pthread_create(&obj->m_status_thread, NULL, HandlerFunction, async_baton);
-    pthread_detach(obj->m_status_thread);
+    int ret = uv_thread_create(&obj->m_status_thread, HandlerFunction, async_baton);
+    assert(ret == 0);
 
     NanReturnUndefined();
 }
@@ -95,10 +97,23 @@ NAN_METHOD(PCSCLite::Close) {
 
     LONG result = SCARD_S_SUCCESS;
     if (obj->m_pnp) {
-        result = SCardCancel(obj->m_card_context);
+        uv_mutex_lock(&obj->m_mutex);
+        if (obj->m_state == 0) {
+            obj->m_state = 1;
+            do {
+                result = SCardCancel(obj->m_card_context);
+            } while (uv_cond_timedwait(&obj->m_cond, &obj->m_mutex, 10000000) != 0);
+        }
+
+        uv_mutex_unlock(&obj->m_mutex);
+        uv_mutex_destroy(&obj->m_mutex);
+        uv_cond_destroy(&obj->m_cond);
     } else {
-        obj->m_closing = true;
+        obj->m_state = 1;
     }
+
+    assert(uv_thread_join(&obj->m_status_thread) == 0);
+    obj->m_status_thread = 0;
 
     NanReturnValue(NanNew<Number>(result));
 }
@@ -108,7 +123,6 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
     NanScope();
 
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
-    PCSCLite* pcsclite = async_baton->pcsclite;
     AsyncResult* ar = async_baton->async_result;
 
     if (ar->do_exit) {
@@ -137,19 +151,16 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
     ar->readers_name = NULL;
     ar->readers_name_length = 0;
     ar->result = SCARD_S_SUCCESS;
-    /* Unlock the mutex */
-    pthread_mutex_unlock(&pcsclite->m_mutex);
 }
 
-void* PCSCLite::HandlerFunction(void* arg) {
+void PCSCLite::HandlerFunction(void* arg) {
 
     LONG result = SCARD_S_SUCCESS;
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(arg);
     PCSCLite* pcsclite = async_baton->pcsclite;
     async_baton->async_result = new AsyncResult();
-    while (!pcsclite->m_closing && (result == SCARD_S_SUCCESS)) {
-        /* Lock mutex. It'll be unlocked after the callback has been sent */
-        pthread_mutex_lock(&pcsclite->m_mutex);
+
+    while (!pcsclite->m_state && (result == SCARD_S_SUCCESS)) {
         /* Get card readers */
         result = pcsclite->get_card_readers(pcsclite, async_baton->async_result);
         if (result == SCARD_E_NO_READERS_AVAILABLE) {
@@ -160,12 +171,26 @@ void* PCSCLite::HandlerFunction(void* arg) {
         async_baton->async_result->result = result;
         /* Notify the nodejs thread */
         uv_async_send(&async_baton->async);
+
         if (pcsclite->m_pnp) {
+            /* Set current status */
+            pcsclite->m_card_reader_state.dwCurrentState =
+                pcsclite->m_card_reader_state.dwEventState;
             /* Start checking for status change */
             result = SCardGetStatusChange(pcsclite->m_card_context,
                                           INFINITE,
                                           &pcsclite->m_card_reader_state,
                                           1);
+            uv_mutex_lock(&pcsclite->m_mutex);
+            if (pcsclite->m_state) {
+                uv_cond_signal(&pcsclite->m_cond);
+            }
+
+            if (result != SCARD_S_SUCCESS) {
+                pcsclite->m_state = 2;
+            }
+
+            uv_mutex_unlock(&pcsclite->m_mutex);
         } else {
             /*  If PnP is not supported, just wait for 1 second */
             sleep(1);
@@ -174,8 +199,6 @@ void* PCSCLite::HandlerFunction(void* arg) {
 
     async_baton->async_result->do_exit = true;
     uv_async_send(&async_baton->async);
-
-    return NULL;
 }
 
 void PCSCLite::CloseCallback(uv_handle_t *handle) {
