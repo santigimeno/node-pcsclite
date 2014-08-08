@@ -1,5 +1,3 @@
-#include <v8.h>
-
 #include "pcsclite.h"
 #include "cardreader.h"
 

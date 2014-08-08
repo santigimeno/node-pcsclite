@@ -61,21 +61,22 @@ void CardReader::init(Handle<Object> target) {
 
 CardReader::CardReader(const std::string &reader_name): m_card_context(0),
                                                         m_card_handle(0),
-                                                        m_name(reader_name) {
-    pthread_mutex_init(&m_mutex, NULL);
+                                                        m_name(reader_name),
+                                                        m_state(0) {
+    assert(uv_mutex_init(&m_mutex) == 0);
+    assert(uv_cond_init(&m_cond) == 0);
 }
 
 CardReader::~CardReader() {
+    SCardCancel(m_card_context);
+    int ret = uv_thread_join(&m_status_thread);
+    assert(ret == 0);
 
     if (m_card_context) {
         SCardReleaseContext(m_card_context);
     }
 
-    if (m_status_card_context) {
-        SCardCancel(m_status_card_context);
-    }
-
-    pthread_mutex_destroy(&m_mutex);
+    uv_mutex_destroy(&m_mutex);
 }
 
 NAN_METHOD(CardReader::New) {
@@ -104,8 +105,8 @@ NAN_METHOD(CardReader::GetStatus) {
     async_baton->reader = obj;
 
     uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
-    pthread_create(&obj->m_status_thread, NULL, HandlerFunction, async_baton);
-    pthread_detach(obj->m_status_thread);
+    int ret = uv_thread_create(&obj->m_status_thread, HandlerFunction, async_baton);
+    assert(ret == 0);
 
     NanReturnUndefined();
 }
@@ -298,10 +299,23 @@ NAN_METHOD(CardReader::Close) {
 
     NanScope();
 
+    LONG result = SCARD_S_SUCCESS;
     CardReader* obj = ObjectWrap::Unwrap<CardReader>(args.This());
 
-    LONG result = SCardCancel(obj->m_status_card_context);
-    obj->m_status_card_context = 0;
+    uv_mutex_lock(&obj->m_mutex);
+    if (obj->m_state == 0) {
+        obj->m_state = 1;
+        do {
+            result = SCardCancel(obj->m_status_card_context);
+        } while (uv_cond_timedwait(&obj->m_cond, &obj->m_mutex, 10000000) != 0);
+    }
+
+    uv_mutex_unlock(&obj->m_mutex);
+    uv_mutex_destroy(&obj->m_mutex);
+    uv_cond_destroy(&obj->m_cond);
+
+    assert(uv_thread_join(&obj->m_status_thread) == 0);
+    obj->m_status_thread = 0;
 
     NanReturnValue(NanNew<Number>(result));
 }
@@ -318,7 +332,7 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
         /* Emit end event */
         Handle<Value> argv[1] = {
-            NanNew("end"), // event name
+            NanNew("_end"), // event name
         };
 
         NanMakeCallback(NanObjectWrapHandle(async_baton->reader), "emit", 1, argv);
@@ -343,27 +357,39 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
     }
 }
 
-void* CardReader::HandlerFunction(void* arg) {
+void CardReader::HandlerFunction(void* arg) {
 
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(arg);
     CardReader* reader = async_baton->reader;
     async_baton->async_result = new AsyncResult();
     async_baton->async_result->do_exit = false;
 
-    /* Lock mutex */
-    pthread_mutex_lock(&reader->m_mutex);
     LONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &reader->m_status_card_context);
-    /* Unlock the mutex */
-    pthread_mutex_unlock(&reader->m_mutex);
 
     SCARD_READERSTATE card_reader_state = SCARD_READERSTATE();
     card_reader_state.szReader = reader->m_name.c_str();
     card_reader_state.dwCurrentState = SCARD_STATE_UNAWARE;
 
-    while(result == SCARD_S_SUCCESS &&
-        !((card_reader_state.dwCurrentState & SCARD_STATE_UNKNOWN) ||
-        (card_reader_state.dwCurrentState & SCARD_STATE_UNAVAILABLE))) {
+    bool keep_watching(result == SCARD_S_SUCCESS);
+    while (keep_watching) {
+
         result = SCardGetStatusChange(reader->m_status_card_context, INFINITE, &card_reader_state, 1);
+        keep_watching = ((result == SCARD_S_SUCCESS) &&
+                         (!reader->m_state) &&
+                         (!((card_reader_state.dwCurrentState & SCARD_STATE_UNKNOWN) ||
+                         (card_reader_state.dwCurrentState & SCARD_STATE_UNAVAILABLE))));
+
+        uv_mutex_lock(&reader->m_mutex);
+        if (reader->m_state == 1) {
+            uv_cond_signal(&reader->m_cond);
+        }
+
+        if (!keep_watching) {
+            reader->m_state = 2;
+        }
+
+        uv_mutex_unlock(&reader->m_mutex);
+
         async_baton->async_result->result = result;
         async_baton->async_result->status = card_reader_state.dwEventState;
         memcpy(async_baton->async_result->atr, card_reader_state.rgbAtr, card_reader_state.cbAtr);
@@ -374,8 +400,6 @@ void* CardReader::HandlerFunction(void* arg) {
 
     async_baton->async_result->do_exit = true;
     uv_async_send(&async_baton->async);
-
-    return NULL;
 }
 
 void CardReader::DoConnect(uv_work_t* req) {
@@ -388,7 +412,7 @@ void CardReader::DoConnect(uv_work_t* req) {
     CardReader* obj = baton->reader;
 
     /* Lock mutex */
-    pthread_mutex_lock(&obj->m_mutex);
+    uv_mutex_lock(&obj->m_mutex);
     /* Is context established */
     if (!obj->m_card_context) {
         result = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &obj->m_card_context);
@@ -405,7 +429,7 @@ void CardReader::DoConnect(uv_work_t* req) {
     }
 
     /* Unlock the mutex */
-    pthread_mutex_unlock(&obj->m_mutex);
+    uv_mutex_unlock(&obj->m_mutex);
 
     ConnectResult *cr = new ConnectResult();
     cr->result = result;
@@ -456,7 +480,7 @@ void CardReader::DoDisconnect(uv_work_t* req) {
     CardReader* obj = baton->reader;
 
     /* Lock mutex */
-    pthread_mutex_lock(&obj->m_mutex);
+    uv_mutex_lock(&obj->m_mutex);
     /* Connect */
     if (obj->m_card_handle) {
         result = SCardDisconnect(obj->m_card_handle, *disposition);
@@ -466,7 +490,7 @@ void CardReader::DoDisconnect(uv_work_t* req) {
     }
 
     /* Unlock the mutex */
-    pthread_mutex_unlock(&obj->m_mutex);
+    uv_mutex_unlock(&obj->m_mutex);
 
     baton->result = reinterpret_cast<void*>(new LONG(result));
 }
@@ -515,7 +539,7 @@ void CardReader::DoTransmit(uv_work_t* req) {
     LONG result = SCARD_E_INVALID_HANDLE;
 
     /* Lock mutex */
-    pthread_mutex_lock(&obj->m_mutex);
+    uv_mutex_lock(&obj->m_mutex);
     /* Connected? */
     if (obj->m_card_handle) {
         SCARD_IO_REQUEST send_pci = { ti->card_protocol, sizeof(SCARD_IO_REQUEST) };
@@ -524,7 +548,7 @@ void CardReader::DoTransmit(uv_work_t* req) {
     }
 
     /* Unlock the mutex */
-    pthread_mutex_unlock(&obj->m_mutex);
+    uv_mutex_unlock(&obj->m_mutex);
 
     tr->result = result;
 
@@ -575,7 +599,7 @@ void CardReader::DoControl(uv_work_t* req) {
     LONG result = SCARD_E_INVALID_HANDLE;
 
     /* Lock mutex */
-    pthread_mutex_lock(&obj->m_mutex);
+    uv_mutex_lock(&obj->m_mutex);
     /* Connected? */
     if (obj->m_card_handle) {
         result = SCardControl(obj->m_card_handle,
@@ -588,7 +612,7 @@ void CardReader::DoControl(uv_work_t* req) {
     }
 
     /* Unlock the mutex */
-    pthread_mutex_unlock(&obj->m_mutex);
+    uv_mutex_unlock(&obj->m_mutex);
 
     cr->result = result;
 
