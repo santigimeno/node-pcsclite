@@ -3,9 +3,14 @@
 
 #include <nan.h>
 #include <node_version.h>
-#include <winscard.h>
 #include <string>
 #include <pthread.h>
+#ifdef __APPLE__
+#include <PCSC/winscard.h>
+#include <PCSC/wintypes.h>
+#else
+#include <winscard.h>
+#endif
 
 static v8::Persistent<v8::String> name_symbol;
 static v8::Persistent<v8::String> connected_symbol;

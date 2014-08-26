@@ -2,8 +2,12 @@
 #define PCSCLITE_H
 
 #include <nan.h>
-
+#ifdef __APPLE__
+#include <PCSC/winscard.h>
+#include <PCSC/wintypes.h>
+#else
 #include <winscard.h>
+#endif
 
 class PCSCLite: public node::ObjectWrap {
 
