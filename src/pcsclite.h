@@ -13,8 +13,8 @@ class PCSCLite: public node::ObjectWrap {
 
     struct AsyncResult {
         LONG result;
-        char *readers_name;
-        unsigned long readers_name_length;
+        LPSTR readers_name;
+        DWORD readers_name_length;
         bool do_exit;
     };
 
