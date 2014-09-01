@@ -32,16 +32,16 @@ class CardReader: public node::ObjectWrap {
     };
 
     struct TransmitInput {
-        uint32_t card_protocol;
-        unsigned char *in_data;
-        unsigned long in_len;
-        unsigned long out_len;
+        DWORD card_protocol;
+        LPBYTE in_data;
+        DWORD in_len;
+        DWORD out_len;
     };
 
     struct TransmitResult {
         LONG result;
-        unsigned char *data;
-        unsigned long len;
+        LPBYTE data;
+        DWORD len;
     };
 
     struct ControlInput {
@@ -54,14 +54,14 @@ class CardReader: public node::ObjectWrap {
 
     struct ControlResult {
         LONG result;
-        unsigned long len;
+        DWORD len;
     };
 
     struct AsyncResult {
         LONG result;
-        unsigned long status;
-        unsigned char atr[MAX_ATR_SIZE];
-        unsigned long atrlen;
+        DWORD status;
+        BYTE atr[MAX_ATR_SIZE];
+        DWORD atrlen;
         bool do_exit;
     };
 
