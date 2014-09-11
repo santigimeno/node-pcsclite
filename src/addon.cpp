@@ -8,4 +8,4 @@ void init_all(v8::Handle<v8::Object> target) {
     CardReader::init(target);
 }
 
-NODE_MODULE(pcsclite, init_all);
+NODE_MODULE(pcsclite, init_all)

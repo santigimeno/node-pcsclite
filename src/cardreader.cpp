@@ -449,7 +449,7 @@ void CardReader::AfterConnect(uv_work_t* req, int status) {
 void CardReader::DoDisconnect(uv_work_t* req) {
 
     Baton* baton = static_cast<Baton*>(req->data);
-    DWORD& disposition = reinterpret_cast<DWORD&>(*baton->input);
+    DWORD* disposition = reinterpret_cast<DWORD*>(baton->input);
 
     LONG result = SCARD_S_SUCCESS;
     CardReader* obj = baton->reader;
@@ -458,7 +458,7 @@ void CardReader::DoDisconnect(uv_work_t* req) {
     pthread_mutex_lock(&obj->m_mutex);
     /* Connect */
     if (obj->m_card_handle) {
-        result = SCardDisconnect(obj->m_card_handle, disposition);
+        result = SCardDisconnect(obj->m_card_handle, *disposition);
         if (result == SCARD_S_SUCCESS) {
             obj->m_card_handle = 0;
         }
