@@ -165,7 +165,7 @@ LONG PCSCLite::get_card_readers(PCSCLite* pcsclite, AsyncResult* async_result) {
     }
 
     /* Find out ReaderNameLength */
-    unsigned long readers_name_length;
+    DWORD readers_name_length;
     result = SCardListReaders(pcsclite->m_card_context, NULL, NULL, &readers_name_length);
     if (result != SCARD_S_SUCCESS) {
         return result;

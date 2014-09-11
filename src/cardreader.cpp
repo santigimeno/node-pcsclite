@@ -167,7 +167,7 @@ NAN_METHOD(CardReader::Disconnect) {
 
     // This creates our work request, including the libuv struct.
     Baton* baton = new Baton();
-    baton->input = reinterpret_cast<void*>(disposition);
+    baton->input = reinterpret_cast<void*>(new DWORD(disposition));
     baton->request.data = baton;
     NanAssignPersistent(baton->callback, cb);
     baton->reader = ObjectWrap::Unwrap<CardReader>(args.This());
@@ -382,7 +382,7 @@ void CardReader::DoConnect(uv_work_t* req) {
     Baton* baton = static_cast<Baton*>(req->data);
     ConnectInput *ci = static_cast<ConnectInput*>(baton->input);
 
-    unsigned long card_protocol;
+    DWORD card_protocol;
     LONG result = SCARD_S_SUCCESS;
     CardReader* obj = baton->reader;
 
@@ -449,7 +449,7 @@ void CardReader::AfterConnect(uv_work_t* req, int status) {
 void CardReader::DoDisconnect(uv_work_t* req) {
 
     Baton* baton = static_cast<Baton*>(req->data);
-    DWORD disposition = reinterpret_cast<DWORD>(baton->input);
+    DWORD& disposition = reinterpret_cast<DWORD&>(*baton->input);
 
     LONG result = SCARD_S_SUCCESS;
     CardReader* obj = baton->reader;
@@ -467,17 +467,17 @@ void CardReader::DoDisconnect(uv_work_t* req) {
     /* Unlock the mutex */
     pthread_mutex_unlock(&obj->m_mutex);
 
-    baton->result = reinterpret_cast<void*>(result);
+    baton->result = reinterpret_cast<void*>(new LONG(result));
 }
 
 void CardReader::AfterDisconnect(uv_work_t* req, int status) {
 
     NanScope();
     Baton* baton = static_cast<Baton*>(req->data);
-    LONG result = reinterpret_cast<LONG>(baton->result);
+    LONG* result = reinterpret_cast<LONG*>(baton->result);
 
-    if (result) {
-        Local<Value> err = NanError(pcsc_stringify_error(result));
+    if (*result) {
+        Local<Value> err = NanError(pcsc_stringify_error(*result));
 
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
@@ -495,7 +495,9 @@ void CardReader::AfterDisconnect(uv_work_t* req, int status) {
 
     // The callback is a permanent handle, so we have to dispose of it manually.
     NanDisposePersistent(baton->callback);
-
+    DWORD* disposition = reinterpret_cast<DWORD*>(baton->input);
+    delete disposition;
+    delete result;
     delete baton;
 }
 
