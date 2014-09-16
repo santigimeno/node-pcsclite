@@ -21,7 +21,9 @@ void PCSCLite::init(Handle<Object> target) {
 }
 
 PCSCLite::PCSCLite(): m_card_context(NULL),
+                      m_card_reader_state(),
                       m_status_thread(NULL) {
+
     pthread_mutex_init(&m_mutex, NULL);
 
     LONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM,
@@ -30,6 +32,19 @@ PCSCLite::PCSCLite(): m_card_context(NULL),
                                         &m_card_context);
     if (result != SCARD_S_SUCCESS) {
         NanThrowError(error_msg("SCardEstablishContext", result).c_str());
+    } else {
+        m_card_reader_state.szReader = "\\\\?PnP?\\Notification";
+        m_card_reader_state.dwCurrentState = SCARD_STATE_UNAWARE;
+        result = SCardGetStatusChange(m_card_context,
+                                      0,
+                                      &m_card_reader_state,
+                                      1);
+
+        if ((result != SCARD_S_SUCCESS) && (result != SCARD_E_TIMEOUT)) {
+            NanThrowError(pcsc_stringify_error(result));
+        } else {
+            m_pnp = !(m_card_reader_state.dwEventState & SCARD_STATE_UNKNOWN);
+        }
     }
 }
 
@@ -125,22 +140,29 @@ void* PCSCLite::HandlerFunction(void* arg) {
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(arg);
     PCSCLite* pcsclite = async_baton->pcsclite;
     async_baton->async_result = new AsyncResult();
-
-    SCARD_READERSTATE card_reader_state = SCARD_READERSTATE();
-    card_reader_state.szReader = "\\\\?PnP?\\Notification";
-    card_reader_state.dwCurrentState = SCARD_STATE_UNAWARE;
-
-    while(result == SCARD_S_SUCCESS) {
+    while (result == SCARD_S_SUCCESS) {
         /* Lock mutex. It'll be unlocked after the callback has been sent */
         pthread_mutex_lock(&pcsclite->m_mutex);
         /* Get card readers */
         result = pcsclite->get_card_readers(pcsclite, async_baton->async_result);
+        if (result == SCARD_E_NO_READERS_AVAILABLE) {
+            result = SCARD_S_SUCCESS;
+        }
+
         /* Store the result in the baton */
         async_baton->async_result->result = result;
         /* Notify the nodejs thread */
         uv_async_send(&async_baton->async);
-        /* Start checking for status change */
-        result = SCardGetStatusChange(pcsclite->m_card_context, INFINITE, &card_reader_state, 1);
+        if (pcsclite->m_pnp) {
+            /* Start checking for status change */
+            result = SCardGetStatusChange(pcsclite->m_card_context,
+                                          INFINITE,
+                                          &pcsclite->m_card_reader_state,
+                                          1);
+        } else {
+            /*  If PnP is not supported, just wait for 1 second */
+            sleep(1);
+        }
     }
 
     async_baton->async_result->do_exit = true;
