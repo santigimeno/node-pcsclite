@@ -49,8 +49,10 @@ class PCSCLite: public node::ObjectWrap {
     private:
 
         SCARDCONTEXT m_card_context;
+        SCARD_READERSTATE m_card_reader_state;
         pthread_t m_status_thread;
         pthread_mutex_t m_mutex;
+        bool m_pnp;
 };
 
 #endif /* PCSCLITE_H */
