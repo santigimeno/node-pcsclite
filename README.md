@@ -4,8 +4,18 @@ Bindings over pcsclite to access Smart Cards
 
 ## Installation
 
+You'll need a node version installed in the system. You have several options:
+
+* Download and install it from the [node website](http://nodejs.org/)
+* Install it from your own distro. For the Debian users:
+
+    `apt-get install nodejs nodejs-legacy`
+
+* Use [nodesource repository](https://github.com/nodesource/distributions) for different distros.
+* Use tools like [nave](https://github.com/isaacs/nave) or [nvm](https://github.com/creationix/nvm)
+
 In order to install the package you need to have installed in the system the
-pcsclite libraries. In Debian/Ubuntu:
+pcsclite libraries. For example, in Debian/Ubuntu:
 
     apt-get install libpcsclite1 libpcsclite-dev
 
