@@ -77,7 +77,9 @@ describe('Testing CardReader private', function() {
         it('#_connect() success', function(done) {
             var p = get_reader();
             p.on('reader', function(reader) {
-                var connect_stub = sinon.stub(reader, '_connect', function(connect_cb) {
+                var connect_stub = sinon.stub(reader, '_connect', function(share_mode,
+                                                                           protocol,
+                                                                           connect_cb) {
                     connect_cb(undefined, 1);
                 });
 
@@ -93,7 +95,9 @@ describe('Testing CardReader private', function() {
             var p = get_reader();
             p.on('reader', function(reader) {
                 var cb = sinon.spy();
-                var connect_stub = sinon.stub(reader, '_connect', function(connect_cb) {
+                var connect_stub = sinon.stub(reader, '_connect', function(share_mode,
+                                                                           protocol,
+                                                                           connect_cb) {
                     connect_cb("");
                 });
 
@@ -124,7 +128,8 @@ describe('Testing CardReader private', function() {
             p.on('reader', function(reader) {
                 reader.connected = true;
                 var cb = sinon.spy();
-                var connect_stub = sinon.stub(reader, '_disconnect', function(disconnect_cb) {
+                var connect_stub = sinon.stub(reader, '_disconnect', function(disposition,
+                                                                              disconnect_cb) {
                     disconnect_cb(undefined);
                 });
 
@@ -138,7 +143,8 @@ describe('Testing CardReader private', function() {
             p.on('reader', function(reader) {
                 reader.connected = true;
                 var cb = sinon.spy();
-                var connect_stub = sinon.stub(reader, '_disconnect', function(disconnect_cb) {
+                var connect_stub = sinon.stub(reader, '_disconnect', function(disposition,
+                                                                              disconnect_cb) {
                     disconnect_cb("");
                 });
 
@@ -151,7 +157,8 @@ describe('Testing CardReader private', function() {
             var p = get_reader();
             p.on('reader', function(reader) {
                 var cb = sinon.spy();
-                var connect_stub = sinon.stub(reader, '_disconnect', function(disconnect_cb) {
+                var connect_stub = sinon.stub(reader, '_disconnect', function(disposition,
+                                                                              disconnect_cb) {
                     disconnect_cb(undefined);
                 });
 
