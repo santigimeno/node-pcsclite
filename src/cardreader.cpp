@@ -115,15 +115,15 @@ NAN_METHOD(CardReader::Connect) {
 
     // The second argument is the length of the data to be received
     if (!args[0]->IsUint32()) {
-        NanThrowError("First argument must be an integer");
+        return NanThrowError("First argument must be an integer");
     }
 
     if (!args[1]->IsUint32()) {
-        NanThrowError("Second argument must be an integer");
+        return NanThrowError("Second argument must be an integer");
     }
 
     if (!args[2]->IsFunction()) {
-        NanThrowError("Third argument must be a callback function");
+        return NanThrowError("Third argument must be a callback function");
     }
 
     ConnectInput* ci = new ConnectInput();
@@ -155,11 +155,11 @@ NAN_METHOD(CardReader::Disconnect) {
     NanScope();
 
     if (!args[0]->IsUint32()) {
-        NanThrowError("First argument must be an integer");
+        return NanThrowError("First argument must be an integer");
     }
 
     if (!args[1]->IsFunction()) {
-        NanThrowError("Second argument must be a callback function");
+        return NanThrowError("Second argument must be a callback function");
     }
 
     DWORD disposition = args[0]->Uint32Value();
@@ -190,22 +190,22 @@ NAN_METHOD(CardReader::Transmit) {
 
     // The first argument is the buffer to be transmitted.
     if (!Buffer::HasInstance(args[0])) {
-        NanThrowError("First argument must be a Buffer");
+        return NanThrowError("First argument must be a Buffer");
     }
 
     // The second argument is the length of the data to be received
     if (!args[1]->IsUint32()) {
-        NanThrowError("Second argument must be an integer");
+        return NanThrowError("Second argument must be an integer");
     }
 
     // The third argument is the protocol to be used
     if (!args[2]->IsUint32()) {
-        NanThrowError("Third argument must be an integer");
+        return NanThrowError("Third argument must be an integer");
     }
 
     // The fourth argument is the callback function
     if (!args[3]->IsFunction()) {
-        NanThrowError("Fourth argument must be a callback function");
+        return NanThrowError("Fourth argument must be a callback function");
     }
 
     Local<Object> buffer_data = args[0]->ToObject();
@@ -245,22 +245,22 @@ NAN_METHOD(CardReader::Control) {
 
     // The first argument is the buffer to be transmitted.
     if (!Buffer::HasInstance(args[0])) {
-        NanThrowError("First argument must be a Buffer");
+        return NanThrowError("First argument must be a Buffer");
     }
 
     // The second argument is the control code to be used
     if (!args[1]->IsUint32()) {
-        NanThrowError("Second argument must be an integer");
+        return NanThrowError("Second argument must be an integer");
     }
 
     // The third argument is output buffer
     if (!Buffer::HasInstance(args[2])) {
-        NanThrowError("Third argument must be a Buffer");
+        return NanThrowError("Third argument must be a Buffer");
     }
 
     // The fourth argument is the callback function
     if (!args[3]->IsFunction()) {
-        NanThrowError("Fourth argument must be a callback function");
+        return NanThrowError("Fourth argument must be a callback function");
     }
 
     Local<Object> in_buf = args[0]->ToObject();
