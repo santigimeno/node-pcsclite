@@ -1,4 +1,5 @@
 #include "cardreader.h"
+#include "common.h"
 
 using namespace v8;
 using namespace node;
@@ -334,7 +335,7 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
         NanCallback(NanNew(async_baton->callback)).Call(argc, argv);
     } else {
-        Local<Value> err = NanError(pcsc_stringify_error(ar->result));
+        Local<Value> err = NanError(error_msg("SCardGetStatusChange", ar->result).c_str());
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
@@ -423,7 +424,7 @@ void CardReader::AfterConnect(uv_work_t* req, int status) {
     ConnectResult *cr = static_cast<ConnectResult*>(baton->result);
 
     if (cr->result) {
-        Local<Value> err = NanError(pcsc_stringify_error(cr->result));
+        Local<Value> err = NanError(error_msg("SCardConnect", cr->result).c_str());
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
@@ -477,7 +478,7 @@ void CardReader::AfterDisconnect(uv_work_t* req, int status) {
     LONG* result = reinterpret_cast<LONG*>(baton->result);
 
     if (*result) {
-        Local<Value> err = NanError(pcsc_stringify_error(*result));
+        Local<Value> err = NanError(error_msg("SCardDisconnect", *result).c_str());
 
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
@@ -538,7 +539,7 @@ void CardReader::AfterTransmit(uv_work_t* req, int status) {
     TransmitResult *tr = static_cast<TransmitResult*>(baton->result);
 
     if (tr->result) {
-        Local<Value> err = NanError(pcsc_stringify_error(tr->result));
+        Local<Value> err = NanError(error_msg("SCardTransmit", tr->result).c_str());
 
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
@@ -602,7 +603,7 @@ void CardReader::AfterControl(uv_work_t* req, int status) {
     ControlResult *cr = static_cast<ControlResult*>(baton->result);
 
     if (cr->result) {
-        Local<Value> err = NanError(pcsc_stringify_error(cr->result));
+        Local<Value> err = NanError(error_msg("SCardControl", cr->result).c_str());
 
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;

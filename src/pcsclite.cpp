@@ -1,4 +1,5 @@
 #include "pcsclite.h"
+#include "common.h"
 
 using namespace v8;
 using namespace node;
@@ -28,7 +29,7 @@ PCSCLite::PCSCLite(): m_card_context(NULL),
                                         NULL,
                                         &m_card_context);
     if (result != SCARD_S_SUCCESS) {
-        NanThrowError(pcsc_stringify_error(result));
+        NanThrowError(error_msg("SCardEstablishContext", result).c_str());
     }
 }
 
@@ -102,7 +103,7 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
         NanCallback(NanNew(async_baton->callback)).Call(argc, argv);
     } else {
-        Local<Value> err = NanError(pcsc_stringify_error(ar->result));
+        Local<Value> err = NanError(error_msg("SCardListReaders", ar->result).c_str());
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
