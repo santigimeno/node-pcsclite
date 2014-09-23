@@ -19,8 +19,17 @@ void PCSCLite::init(Handle<Object> target) {
     target->Set(NanNew("PCSCLite"), tpl->GetFunction());
 }
 
-PCSCLite::PCSCLite(): m_card_context(0) {
+PCSCLite::PCSCLite(): m_card_context(NULL),
+                      m_status_thread(NULL) {
     pthread_mutex_init(&m_mutex, NULL);
+
+    LONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM,
+                                        NULL,
+                                        NULL,
+                                        &m_card_context);
+    if (result != SCARD_S_SUCCESS) {
+        NanThrowError(pcsc_stringify_error(result));
+    }
 }
 
 PCSCLite::~PCSCLite() {
@@ -29,7 +38,9 @@ PCSCLite::~PCSCLite() {
     }
 
     pthread_mutex_destroy(&m_mutex);
-    pthread_cancel(m_status_thread);
+    if (m_status_thread) {
+        pthread_cancel(m_status_thread);
+    }
 }
 
 NAN_METHOD(PCSCLite::New) {
@@ -155,14 +166,6 @@ LONG PCSCLite::get_card_readers(PCSCLite* pcsclite, AsyncResult* async_result) {
     /* Reset the readers_name in the baton */
     async_result->readers_name = NULL;
     async_result->readers_name_length = 0;
-
-    if (!pcsclite->m_card_context) {
-        result = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &pcsclite->m_card_context);
-    }
-
-    if (result != SCARD_S_SUCCESS) {
-        return result;
-    }
 
     /* Find out ReaderNameLength */
     DWORD readers_name_length;
