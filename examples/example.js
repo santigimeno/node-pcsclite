@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 var pcsc = require('../index');
 
 var pcsc = pcsc();
