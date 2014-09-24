@@ -25,7 +25,7 @@ pcsc.on('reader', function(reader) {
                 });
             } else if ((changes & this.SCARD_STATE_PRESENT) && (status.state & this.SCARD_STATE_PRESENT)) {
                 console.log("card inserted");/* card inserted */
-                reader.connect(function(err, protocol) {
+                reader.connect({ share_mode : this.SCARD_SHARE_SHARED }, function(err, protocol) {
                     if (err) {
                         console.log(err);
                     } else {

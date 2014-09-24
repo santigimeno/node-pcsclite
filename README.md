@@ -33,11 +33,14 @@ To run any code you will also need to have installed the pcsc daemon:
 var pcsc = require('pcsclite');
 
 var pcsc = pcsc();
-/* Check for new card reader detection */
 pcsc.on('reader', function(reader) {
+
     console.log('New reader detected', reader.name);
 
-    /* Check for reader status changes such a new card insertion */
+    reader.on('error', function(err) {
+        console.log('Error(', this.name, '):', err.message);
+    });
+
     reader.on('status', function(status) {
         console.log('Status(', this.name, '):', status);
         /* check what has changed */
@@ -54,11 +57,11 @@ pcsc.on('reader', function(reader) {
                 });
             } else if ((changes & this.SCARD_STATE_PRESENT) && (status.state & this.SCARD_STATE_PRESENT)) {
                 console.log("card inserted");/* card inserted */
-                reader.connect(function(err, protocol) {
+                reader.connect({ share_mode : this.SCARD_SHARE_SHARED }, function(err, protocol) {
                     if (err) {
                         console.log(err);
                     } else {
-                        console.log('Protocol(', this.name, '):', protocol);
+                        console.log('Protocol(', reader.name, '):', protocol);
                         reader.transmit(new Buffer([0x00, 0xB0, 0x00, 0x00, 0x20]), 40, protocol, function(err, data) {
                             if (err) {
                                 console.log(err);
@@ -74,10 +77,6 @@ pcsc.on('reader', function(reader) {
 
     reader.on('end', function() {
         console.log('Reader',  this.name, 'removed');
-    });
-
-    reader.on('error', function(err) {
-        console.log('Error(', this.name, '):', err.message);
     });
 });
 
