@@ -67,6 +67,8 @@ pcsc.on('reader', function(reader) {
                                 console.log(err);
                             } else {
                                 console.log('Data received', data);
+                                reader.close();
+                                pcsclite.close();
                             }
                         });
                     }
@@ -100,6 +102,10 @@ The PCSCLite object is an EventEmitter that notifies the existence of Card Reade
 * *reader* `CardReader`. A CardReader object associated to the card reader detected
 
 Emitted whenever a new card reader is detected.
+
+#### pcsclite.close()
+
+It frees the resources associated with this PCSCLite instance. At a low level it calls [`SCardCancel`](http://pcsclite.alioth.debian.org/pcsc-lite/node21.html) so it stops watching for new readers.
 
 
 ### Class: CardReader
@@ -162,3 +168,7 @@ Wrapper around [`SCardTransmit`](http://pcsclite.alioth.debian.org/pcsc-lite/nod
     * *output* `Buffer`
 
 Wrapper around [`SCardControl`](http://pcsclite.alioth.debian.org/pcsc-lite/node18.html). Sends a command directly to the IFD Handler (reader driver) to be processed by the reader.
+
+#### reader.close()
+
+It frees the resources associated with this CardReader instance. At a low level it calls [`SCardCancel`](http://pcsclite.alioth.debian.org/pcsc-lite/node21.html) so it stops watching for the reader status changes.
