@@ -35,6 +35,8 @@ pcsc.on('reader', function(reader) {
                                 console.log(err);
                             } else {
                                 console.log('Data received', data);
+                                reader.close();
+                                pcsc.close();
                             }
                         });
                     }
