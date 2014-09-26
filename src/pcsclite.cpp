@@ -22,7 +22,8 @@ void PCSCLite::init(Handle<Object> target) {
 
 PCSCLite::PCSCLite(): m_card_context(NULL),
                       m_card_reader_state(),
-                      m_status_thread(NULL) {
+                      m_status_thread(NULL),
+                      m_closing(false) {
 
     pthread_mutex_init(&m_mutex, NULL);
 
@@ -91,7 +92,12 @@ NAN_METHOD(PCSCLite::Close) {
 
     PCSCLite* obj = ObjectWrap::Unwrap<PCSCLite>(args.This());
 
-    LONG result = SCardCancel(obj->m_card_context);
+    LONG result = SCARD_S_SUCCESS;
+    if (obj->m_pnp) {
+        result = SCardCancel(obj->m_card_context);
+    } else {
+        obj->m_closing = true;
+    }
 
     NanReturnValue(NanNew<Integer>(result));
 }
@@ -140,7 +146,7 @@ void* PCSCLite::HandlerFunction(void* arg) {
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(arg);
     PCSCLite* pcsclite = async_baton->pcsclite;
     async_baton->async_result = new AsyncResult();
-    while (result == SCARD_S_SUCCESS) {
+    while (!pcsclite->m_closing && (result == SCARD_S_SUCCESS)) {
         /* Lock mutex. It'll be unlocked after the callback has been sent */
         pthread_mutex_lock(&pcsclite->m_mutex);
         /* Get card readers */
