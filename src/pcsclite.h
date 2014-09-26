@@ -53,6 +53,7 @@ class PCSCLite: public node::ObjectWrap {
         pthread_t m_status_thread;
         pthread_mutex_t m_mutex;
         bool m_pnp;
+        bool m_closing;
 };
 
 #endif /* PCSCLITE_H */
