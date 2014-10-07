@@ -113,7 +113,7 @@ NAN_METHOD(PCSCLite::Close) {
     }
 
     assert(uv_thread_join(&obj->m_status_thread) == 0);
-    obj->m_status_thread = NULL;
+    obj->m_status_thread = 0;
 
     NanReturnValue(NanNew<Number>(result));
 }
@@ -190,7 +190,7 @@ void PCSCLite::HandlerFunction(void* arg) {
             uv_mutex_unlock(&pcsclite->m_mutex);
         } else {
             /*  If PnP is not supported, just wait for 1 second */
-            sleep(1);
+            Sleep(1000);
         }
     }
 

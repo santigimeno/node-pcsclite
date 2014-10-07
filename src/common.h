@@ -3,22 +3,33 @@
 
 #define ERR_MSG_MAX_LEN 512
 
+#ifdef _WINDOWS
+#include <windows.h>
+#else
+#include <unistd.h>
+#define Sleep(x) usleep((x)*1000)
+#endif
+
+#ifdef _WIN32
+#define snprintf _snprintf
+#endif
+
 namespace {
+
+#ifdef _WIN32
+
+    const char *pcsc_stringify_error(const LONG) {
+        return "";
+    }
+#endif
+
     std::string error_msg(const char* method, LONG result) {
         char msg[ERR_MSG_MAX_LEN];
-#ifdef _WIN32
-        _snprintf(msg,
-                 ERR_MSG_MAX_LEN,
-                 "%s error: 0x%.8lx",
-                 method,
-                 result);
-#else
         snprintf(msg,
                  ERR_MSG_MAX_LEN,
                  "%s error: %s(0x%.8lx)",
                  method,
                  pcsc_stringify_error(result), result);
-#endif
         return msg;
     }
 }

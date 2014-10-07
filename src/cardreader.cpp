@@ -299,7 +299,7 @@ NAN_METHOD(CardReader::Close) {
 
     NanScope();
 
-    LONG result;
+    LONG result = SCARD_S_SUCCESS;
     CardReader* obj = ObjectWrap::Unwrap<CardReader>(args.This());
 
     uv_mutex_lock(&obj->m_mutex);
@@ -315,7 +315,7 @@ NAN_METHOD(CardReader::Close) {
     uv_cond_destroy(&obj->m_cond);
 
     assert(uv_thread_join(&obj->m_status_thread) == 0);
-    obj->m_status_thread = NULL;
+    obj->m_status_thread = 0;
 
     NanReturnValue(NanNew<Number>(result));
 }
