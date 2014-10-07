@@ -81,6 +81,7 @@ class CardReader: public node::ObjectWrap {
 
         static void init(v8::Handle<v8::Object> target);
 
+        const SCARDHANDLE& GetHandler() const { return m_card_handle; };
 
     private:
 
