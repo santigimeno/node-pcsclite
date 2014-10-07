@@ -3,7 +3,7 @@
 
 #define ERR_MSG_MAX_LEN 512
 
-#ifdef _WINDOWS
+#ifdef _WIN32
 #include <windows.h>
 #else
 #include <unistd.h>
