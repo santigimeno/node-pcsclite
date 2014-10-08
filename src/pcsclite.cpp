@@ -173,6 +173,9 @@ void PCSCLite::HandlerFunction(void* arg) {
         uv_async_send(&async_baton->async);
 
         if (pcsclite->m_pnp) {
+            /* Set current status */
+            pcsclite->m_card_reader_state.dwCurrentState =
+                pcsclite->m_card_reader_state.dwEventState;
             /* Start checking for status change */
             result = SCardGetStatusChange(pcsclite->m_card_context,
                                           INFINITE,
