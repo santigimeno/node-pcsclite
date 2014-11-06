@@ -1,3 +1,4 @@
+#include <unistd.h>
 #include "pcsclite.h"
 #include "common.h"
 
@@ -20,9 +21,9 @@ void PCSCLite::init(Handle<Object> target) {
     target->Set(NanNew("PCSCLite"), tpl->GetFunction());
 }
 
-PCSCLite::PCSCLite(): m_card_context(NULL),
+PCSCLite::PCSCLite(): m_card_context(0),
                       m_card_reader_state(),
-                      m_status_thread(NULL),
+                      m_status_thread(0),
                       m_closing(false) {
 
     pthread_mutex_init(&m_mutex, NULL);
