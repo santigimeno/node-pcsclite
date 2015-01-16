@@ -303,7 +303,7 @@ NAN_METHOD(CardReader::Close) {
     LONG result = SCardCancel(obj->m_status_card_context);
     obj->m_status_card_context = 0;
 
-    NanReturnValue(NanNew<Integer>(result));
+    NanReturnValue(NanNew<Number>(result));
 }
 
 void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
@@ -329,7 +329,7 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
         const unsigned argc = 3;
         Handle<Value> argv[argc] = {
             NanUndefined(), // argument
-            NanNew<Integer>(ar->status),
+            NanNew<Number>(ar->status),
             NanNewBufferHandle(reinterpret_cast<char*>(ar->atr), ar->atrlen)
         };
 
@@ -434,7 +434,7 @@ void CardReader::AfterConnect(uv_work_t* req, int status) {
         const unsigned argc = 2;
         Handle<Value> argv[argc] = {
             NanNull(),
-            NanNew<Integer>(cr->card_protocol)
+            NanNew<Number>(cr->card_protocol)
         };
 
         NanCallback(NanNew(baton->callback)).Call(argc, argv);
@@ -613,7 +613,7 @@ void CardReader::AfterControl(uv_work_t* req, int status) {
         const unsigned argc = 2;
         Handle<Value> argv[argc] = {
             NanNull(),
-            NanNew<Integer>(cr->len)
+            NanNew<Number>(cr->len)
         };
 
         NanCallback(NanNew(baton->callback)).Call(argc, argv);

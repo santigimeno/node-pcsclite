@@ -100,7 +100,7 @@ NAN_METHOD(PCSCLite::Close) {
         obj->m_closing = true;
     }
 
-    NanReturnValue(NanNew<Integer>(result));
+    NanReturnValue(NanNew<Number>(result));
 }
 
 void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
