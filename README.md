@@ -69,7 +69,7 @@ pcsc.on('reader', function(reader) {
                             } else {
                                 console.log('Data received', data);
                                 reader.close();
-                                pcsclite.close();
+                                pcsc.close();
                             }
                         });
                     }
