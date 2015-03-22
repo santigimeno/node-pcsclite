@@ -1,4 +1,3 @@
-#include <unistd.h>
 #include "pcsclite.h"
 #include "common.h"
 
