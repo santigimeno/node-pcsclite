@@ -41,7 +41,7 @@ class PCSCLite: public node::ObjectWrap {
         static NAN_METHOD(Close);
 
         static void HandleReaderStatusChange(uv_async_t *handle, int status);
-        static void* HandlerFunction(void* arg);
+        static void HandlerFunction(void* arg);
         static void CloseCallback(uv_handle_t *handle);
 
         LONG get_card_readers(PCSCLite* pcsclite, AsyncResult* async_result);
@@ -50,10 +50,11 @@ class PCSCLite: public node::ObjectWrap {
 
         SCARDCONTEXT m_card_context;
         SCARD_READERSTATE m_card_reader_state;
-        pthread_t m_status_thread;
-        pthread_mutex_t m_mutex;
+        uv_thread_t m_status_thread;
+        uv_mutex_t m_mutex;
+        uv_cond_t m_cond;
         bool m_pnp;
-        bool m_closing;
+        int m_state;
 };
 
 #endif /* PCSCLITE_H */
