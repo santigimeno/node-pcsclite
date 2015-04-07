@@ -4,12 +4,17 @@
 #include <nan.h>
 #include <node_version.h>
 #include <string>
-#include <pthread.h>
+#include <thread>
+#include <mutex>
 #ifdef __APPLE__
 #include <PCSC/winscard.h>
 #include <PCSC/wintypes.h>
 #else
 #include <winscard.h>
+#endif
+
+#ifndef MAX_ATR_SIZE
+#define MAX_ATR_SIZE 66
 #endif
 
 static v8::Persistent<v8::String> name_symbol;
@@ -120,8 +125,7 @@ class CardReader: public node::ObjectWrap {
         SCARDCONTEXT m_status_card_context;
         SCARDHANDLE m_card_handle;
         std::string m_name;
-        pthread_t m_status_thread;
-        pthread_mutex_t m_mutex;
+        std::mutex m_mutex;
 };
 
 #endif /* CARDREADER_H */

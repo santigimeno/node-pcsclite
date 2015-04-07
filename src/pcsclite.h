@@ -9,6 +9,9 @@
 #include <winscard.h>
 #endif
 
+#include <thread>
+#include <mutex>
+
 class PCSCLite: public node::ObjectWrap {
 
     struct AsyncResult {
@@ -50,8 +53,8 @@ class PCSCLite: public node::ObjectWrap {
 
         SCARDCONTEXT m_card_context;
         SCARD_READERSTATE m_card_reader_state;
-        pthread_t m_status_thread;
-        pthread_mutex_t m_mutex;
+        std::thread m_status_thread;
+        std::mutex m_mutex;
         bool m_pnp;
         bool m_closing;
 };
