@@ -62,7 +62,6 @@ void CardReader::init(Handle<Object> target) {
 CardReader::CardReader(const std::string &reader_name): m_card_context(0),
                                                         m_card_handle(0),
                                                         m_name(reader_name) {
-    pthread_mutex_init(&m_mutex, NULL);
 }
 
 CardReader::~CardReader() {
@@ -74,8 +73,6 @@ CardReader::~CardReader() {
     if (m_status_card_context) {
         SCardCancel(m_status_card_context);
     }
-
-    pthread_mutex_destroy(&m_mutex);
 }
 
 NAN_METHOD(CardReader::New) {
@@ -104,8 +101,7 @@ NAN_METHOD(CardReader::GetStatus) {
     async_baton->reader = obj;
 
     uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
-    pthread_create(&obj->m_status_thread, NULL, HandlerFunction, async_baton);
-    pthread_detach(obj->m_status_thread);
+    std::thread(HandlerFunction, async_baton).detach();
 
     NanReturnUndefined();
 }
@@ -350,11 +346,11 @@ void* CardReader::HandlerFunction(void* arg) {
     async_baton->async_result = new AsyncResult();
     async_baton->async_result->do_exit = false;
 
-    /* Lock mutex */
-    pthread_mutex_lock(&reader->m_mutex);
-    LONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &reader->m_status_card_context);
-    /* Unlock the mutex */
-    pthread_mutex_unlock(&reader->m_mutex);
+    LONG result;
+    {
+        std::lock_guard<decltype(reader->m_mutex)> lock(reader->m_mutex);
+        result = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &reader->m_status_card_context);
+    }
 
     SCARD_READERSTATE card_reader_state = SCARD_READERSTATE();
     card_reader_state.szReader = reader->m_name.c_str();
@@ -387,25 +383,24 @@ void CardReader::DoConnect(uv_work_t* req) {
     LONG result = SCARD_S_SUCCESS;
     CardReader* obj = baton->reader;
 
-    /* Lock mutex */
-    pthread_mutex_lock(&obj->m_mutex);
-    /* Is context established */
-    if (!obj->m_card_context) {
-        result = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &obj->m_card_context);
-    }
+    {
+        std::lock_guard<decltype(obj->m_mutex)> lock(obj->m_mutex);
 
-    /* Connect */
-    if (result == SCARD_S_SUCCESS) {
-        result = SCardConnect(obj->m_card_context,
-                              obj->m_name.c_str(),
-                              ci->share_mode,
-                              ci->pref_protocol,
-                              &obj->m_card_handle,
-                              &card_protocol);
-    }
+        /* Is context established */
+        if (!obj->m_card_context) {
+            result = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &obj->m_card_context);
+        }
 
-    /* Unlock the mutex */
-    pthread_mutex_unlock(&obj->m_mutex);
+        /* Connect */
+        if (result == SCARD_S_SUCCESS) {
+            result = SCardConnect(obj->m_card_context,
+                                  obj->m_name.c_str(),
+                                  ci->share_mode,
+                                  ci->pref_protocol,
+                                  &obj->m_card_handle,
+                                  &card_protocol);
+        }
+    }
 
     ConnectResult *cr = new ConnectResult();
     cr->result = result;
@@ -455,18 +450,17 @@ void CardReader::DoDisconnect(uv_work_t* req) {
     LONG result = SCARD_S_SUCCESS;
     CardReader* obj = baton->reader;
 
-    /* Lock mutex */
-    pthread_mutex_lock(&obj->m_mutex);
-    /* Connect */
-    if (obj->m_card_handle) {
-        result = SCardDisconnect(obj->m_card_handle, *disposition);
-        if (result == SCARD_S_SUCCESS) {
-            obj->m_card_handle = 0;
+    {
+        std::lock_guard<decltype(obj->m_mutex)> lock(obj->m_mutex);
+
+        /* Connect */
+        if (obj->m_card_handle) {
+            result = SCardDisconnect(obj->m_card_handle, *disposition);
+            if (result == SCARD_S_SUCCESS) {
+                obj->m_card_handle = 0;
+            }
         }
     }
-
-    /* Unlock the mutex */
-    pthread_mutex_unlock(&obj->m_mutex);
 
     baton->result = reinterpret_cast<void*>(new LONG(result));
 }
@@ -514,17 +508,16 @@ void CardReader::DoTransmit(uv_work_t* req) {
     tr->len = ti->out_len;
     LONG result = SCARD_E_INVALID_HANDLE;
 
-    /* Lock mutex */
-    pthread_mutex_lock(&obj->m_mutex);
-    /* Connected? */
-    if (obj->m_card_handle) {
-        SCARD_IO_REQUEST send_pci = { ti->card_protocol, sizeof(SCARD_IO_REQUEST) };
-        result = SCardTransmit(obj->m_card_handle, &send_pci, ti->in_data, ti->in_len,
-                               &io_request, tr->data, &tr->len);
-    }
+    {
+        std::lock_guard<decltype(obj->m_mutex)> lock(obj->m_mutex);
 
-    /* Unlock the mutex */
-    pthread_mutex_unlock(&obj->m_mutex);
+        /* Connected? */
+        if (obj->m_card_handle) {
+            SCARD_IO_REQUEST send_pci = { ti->card_protocol, sizeof(SCARD_IO_REQUEST) };
+            result = SCardTransmit(obj->m_card_handle, &send_pci, ti->in_data, ti->in_len,
+                                   &io_request, tr->data, &tr->len);
+        }
+    }
 
     tr->result = result;
 
@@ -574,21 +567,20 @@ void CardReader::DoControl(uv_work_t* req) {
     ControlResult *cr = new ControlResult();
     LONG result = SCARD_E_INVALID_HANDLE;
 
-    /* Lock mutex */
-    pthread_mutex_lock(&obj->m_mutex);
-    /* Connected? */
-    if (obj->m_card_handle) {
-        result = SCardControl(obj->m_card_handle,
-                              ci->control_code,
-                              ci->in_data,
-                              ci->in_len,
-                              ci->out_data,
-                              ci->out_len,
-                              &cr->len);
-    }
+    {
+        std::lock_guard<decltype(obj->m_mutex)> lock(obj->m_mutex);
 
-    /* Unlock the mutex */
-    pthread_mutex_unlock(&obj->m_mutex);
+        /* Connected? */
+        if (obj->m_card_handle) {
+            result = SCardControl(obj->m_card_handle,
+                                  ci->control_code,
+                                  ci->in_data,
+                                  ci->in_len,
+                                  ci->out_data,
+                                  ci->out_len,
+                                  &cr->len);
+        }
+    }
 
     cr->result = result;
 

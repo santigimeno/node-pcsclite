@@ -1,4 +1,4 @@
-#include <unistd.h>
+//#include <unistd.h>
 #include "pcsclite.h"
 #include "common.h"
 
@@ -23,10 +23,7 @@ void PCSCLite::init(Handle<Object> target) {
 
 PCSCLite::PCSCLite(): m_card_context(0),
                       m_card_reader_state(),
-                      m_status_thread(0),
                       m_closing(false) {
-
-    pthread_mutex_init(&m_mutex, NULL);
 
     LONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM,
                                         NULL,
@@ -43,7 +40,7 @@ PCSCLite::PCSCLite(): m_card_context(0),
                                       1);
 
         if ((result != SCARD_S_SUCCESS) && (result != SCARD_E_TIMEOUT)) {
-            NanThrowError(pcsc_stringify_error(result));
+            NanThrowError(error_msg("SCardGetStatusChange", result).c_str());
         } else {
             m_pnp = !(m_card_reader_state.dwEventState & SCARD_STATE_UNKNOWN);
         }
@@ -52,12 +49,13 @@ PCSCLite::PCSCLite(): m_card_context(0),
 
 PCSCLite::~PCSCLite() {
     if (m_card_context) {
+        m_closing = true;
+        //SCardCancel(m_card_context);
         SCardReleaseContext(m_card_context);
     }
 
-    pthread_mutex_destroy(&m_mutex);
-    if (m_status_thread) {
-        pthread_cancel(m_status_thread);
+    if (m_status_thread.joinable()) {
+        m_status_thread.join();
     }
 }
 
@@ -81,8 +79,9 @@ NAN_METHOD(PCSCLite::Start) {
     async_baton->pcsclite = obj;
 
     uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
-    pthread_create(&obj->m_status_thread, NULL, HandlerFunction, async_baton);
-    pthread_detach(obj->m_status_thread);
+
+    obj->m_status_thread = std::thread(HandlerFunction, async_baton);
+    obj->m_status_thread.detach();
 
     NanReturnUndefined();
 }
@@ -99,6 +98,8 @@ NAN_METHOD(PCSCLite::Close) {
     } else {
         obj->m_closing = true;
     }
+
+    //if(obj->m_status_thread.joinable()) obj->m_status_thread.join();
 
     NanReturnValue(NanNew<Number>(result));
 }
@@ -137,8 +138,6 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
     ar->readers_name = NULL;
     ar->readers_name_length = 0;
     ar->result = SCARD_S_SUCCESS;
-    /* Unlock the mutex */
-    pthread_mutex_unlock(&pcsclite->m_mutex);
 }
 
 void* PCSCLite::HandlerFunction(void* arg) {
@@ -148,18 +147,19 @@ void* PCSCLite::HandlerFunction(void* arg) {
     PCSCLite* pcsclite = async_baton->pcsclite;
     async_baton->async_result = new AsyncResult();
     while (!pcsclite->m_closing && (result == SCARD_S_SUCCESS)) {
-        /* Lock mutex. It'll be unlocked after the callback has been sent */
-        pthread_mutex_lock(&pcsclite->m_mutex);
-        /* Get card readers */
-        result = pcsclite->get_card_readers(pcsclite, async_baton->async_result);
-        if (result == SCARD_E_NO_READERS_AVAILABLE) {
-            result = SCARD_S_SUCCESS;
-        }
+        {
+            std::lock_guard<decltype(pcsclite->m_mutex)> lock(pcsclite->m_mutex);
+            /* Get card readers */
+            result = pcsclite->get_card_readers(pcsclite, async_baton->async_result);
+            if (result == SCARD_E_NO_READERS_AVAILABLE) {
+                result = SCARD_S_SUCCESS;
+            }
 
-        /* Store the result in the baton */
-        async_baton->async_result->result = result;
-        /* Notify the nodejs thread */
-        uv_async_send(&async_baton->async);
+            /* Store the result in the baton */
+            async_baton->async_result->result = result;
+            /* Notify the nodejs thread */
+            uv_async_send(&async_baton->async);
+        }
         if (pcsclite->m_pnp) {
             /* Start checking for status change */
             result = SCardGetStatusChange(pcsclite->m_card_context,
@@ -168,7 +168,7 @@ void* PCSCLite::HandlerFunction(void* arg) {
                                           1);
         } else {
             /*  If PnP is not supported, just wait for 1 second */
-            sleep(1);
+            std::this_thread::sleep_for(std::chrono::seconds(1));
         }
     }
 
