@@ -16,20 +16,33 @@
 
 namespace {
 
-#ifdef _WIN32
-
-    const char *pcsc_stringify_error(const LONG) {
-        return "";
-    }
-#endif
-
     std::string error_msg(const char* method, LONG result) {
         char msg[ERR_MSG_MAX_LEN];
+#ifdef _WIN32
+        LPVOID lpMsgBuf;
+        FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                       FORMAT_MESSAGE_FROM_SYSTEM |
+                       FORMAT_MESSAGE_IGNORE_INSERTS,
+                       NULL,
+                       result,
+                       MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                       (LPTSTR) &lpMsgBuf,
+                       NULL);
         snprintf(msg,
                  ERR_MSG_MAX_LEN,
                  "%s error: %s(0x%.8lx)",
                  method,
-                 pcsc_stringify_error(result), result);
+                 lpMsgBuf,
+                 result);
+#else
+        snprintf(msg,
+                 ERR_MSG_MAX_LEN,
+                 "%s error: %s(0x%.8lx)",
+                 method,
+                 pcsc_stringify_error(result),
+                 result);
+#endif
+
         return msg;
     }
 }
