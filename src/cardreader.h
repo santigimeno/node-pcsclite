@@ -11,6 +11,10 @@
 #include <winscard.h>
 #endif
 
+#ifdef _WIN32
+#define MAX_ATR_SIZE 33
+#endif
+
 static v8::Persistent<v8::String> name_symbol;
 static v8::Persistent<v8::String> connected_symbol;
 
