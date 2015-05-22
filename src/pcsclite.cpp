@@ -1,4 +1,3 @@
-#include <unistd.h>
 #include "pcsclite.h"
 #include "common.h"
 
@@ -193,7 +192,7 @@ void PCSCLite::HandlerFunction(void* arg) {
             uv_mutex_unlock(&pcsclite->m_mutex);
         } else {
             /*  If PnP is not supported, just wait for 1 second */
-            sleep(1);
+            Sleep(1000);
         }
     }
 
