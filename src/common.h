@@ -27,6 +27,7 @@ namespace {
                        result,
                        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
                        (LPTSTR) &lpMsgBuf,
+                       1,
                        NULL);
         snprintf(msg,
                  ERR_MSG_MAX_LEN,
@@ -34,6 +35,8 @@ namespace {
                  method,
                  lpMsgBuf,
                  result);
+
+        LocalFree(lpMsgBuf);
 #else
         snprintf(msg,
                  ERR_MSG_MAX_LEN,
