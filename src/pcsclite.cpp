@@ -43,7 +43,7 @@ PCSCLite::PCSCLite(): m_card_context(0),
                                       1);
 
         if ((result != SCARD_S_SUCCESS) && (result != SCARD_E_TIMEOUT)) {
-            NanThrowError(pcsc_stringify_error(result));
+            NanThrowError(error_msg("SCardGetStatusChange", result).c_str());
         } else {
             m_pnp = !(m_card_reader_state.dwEventState & SCARD_STATE_UNKNOWN);
         }
