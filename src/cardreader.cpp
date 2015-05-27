@@ -52,8 +52,8 @@ void CardReader::init(Handle<Object> target) {
     // Disconnect disposition
     NanSetPrototypeTemplate(tpl, "SCARD_LEAVE_CARD", NanNew(SCARD_LEAVE_CARD));
     NanSetPrototypeTemplate(tpl, "SCARD_RESET_CARD", NanNew(SCARD_RESET_CARD));
-    NanSetPrototypeTemplate(tpl, "SCARD_STATE_CHANGED", NanNew(SCARD_STATE_CHANGED));
     NanSetPrototypeTemplate(tpl, "SCARD_UNPOWER_CARD", NanNew(SCARD_UNPOWER_CARD));
+    NanSetPrototypeTemplate(tpl, "SCARD_EJECT_CARD", NanNew(SCARD_EJECT_CARD));
 
     NanAssignPersistent<Function>(constructor, tpl->GetFunction());
     target->Set(NanNew("CardReader"), tpl->GetFunction());
