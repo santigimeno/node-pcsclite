@@ -20,6 +20,7 @@ void CardReader::init(Handle<Object> target) {
     // Prototype
     NanSetPrototypeTemplate(tpl, "get_status", NanNew<FunctionTemplate>(GetStatus));
     NanSetPrototypeTemplate(tpl, "_connect", NanNew<FunctionTemplate>(Connect));
+    NanSetPrototypeTemplate(tpl, "_reconnect", NanNew<FunctionTemplate>(Reconnect));
     NanSetPrototypeTemplate(tpl, "_disconnect", NanNew<FunctionTemplate>(Disconnect));
     NanSetPrototypeTemplate(tpl, "_transmit", NanNew<FunctionTemplate>(Transmit));
     NanSetPrototypeTemplate(tpl, "_control", NanNew<FunctionTemplate>(Control));
@@ -147,6 +148,52 @@ NAN_METHOD(CardReader::Connect) {
                                &baton->request,
                                DoConnect,
                                reinterpret_cast<uv_after_work_cb>(AfterConnect));
+    assert(status == 0);
+
+    NanReturnUndefined();
+}
+
+NAN_METHOD(CardReader::Reconnect) {
+
+    NanScope();
+
+    // The second argument is the length of the data to be received
+    if (!args[0]->IsUint32()) {
+        return NanThrowError("First argument must be an integer");
+    }
+
+    if (!args[1]->IsUint32()) {
+        return NanThrowError("Second argument must be an integer");
+    }
+
+    if (!args[2]->IsUint32()) {
+        return NanThrowError("Third argument must be an integer");
+    }
+
+    if (!args[3]->IsFunction()) {
+        return NanThrowError("Fourth argument must be a callback function");
+    }
+
+    ReconnectInput* ri = new ReconnectInput();
+    ri->share_mode = args[0]->Uint32Value();
+    ri->pref_protocol = args[1]->Uint32Value();
+    ri->action = args[2]->Uint32Value();
+    Local<Function> cb = Local<Function>::Cast(args[3]);
+
+    // This creates our work request, including the libuv struct.
+    Baton* baton = new Baton();
+    baton->request.data = baton;
+    NanAssignPersistent(baton->callback, cb);
+    baton->reader = ObjectWrap::Unwrap<CardReader>(args.This());
+    baton->input = ri;
+
+    // Schedule our work request with libuv. Here you can specify the functions
+    // that should be executed in the threadpool and back in the main thread
+    // after the threadpool function completed.
+    int status = uv_queue_work(uv_default_loop(),
+                               &baton->request,
+                               DoReconnect,
+                               reinterpret_cast<uv_after_work_cb>(AfterReconnect));
     assert(status == 0);
 
     NanReturnUndefined();
@@ -468,6 +515,70 @@ void CardReader::AfterConnect(uv_work_t* req, int status) {
     NanDisposePersistent(baton->callback);
     delete ci;
     delete cr;
+    delete baton;
+}
+
+void CardReader::DoReconnect(uv_work_t* req) {
+
+    Baton* baton = static_cast<Baton*>(req->data);
+    ReconnectInput* ri = static_cast<ReconnectInput*>(baton->input);
+
+    DWORD card_protocol;
+    LONG result = SCARD_S_SUCCESS;
+    CardReader* obj = baton->reader;
+
+    /* Lock mutex */
+    pthread_mutex_lock(&obj->m_mutex);
+
+    /* Reconnect */
+    if (obj->m_card_handle) {
+        result = SCardReconnect(obj->m_card_handle,
+                              ri->share_mode,
+                              ri->pref_protocol,
+                              ri->action,
+                              &card_protocol);
+    }
+
+    /* Unlock the mutex */
+    pthread_mutex_unlock(&obj->m_mutex);
+
+    ReconnectResult *rr = new ReconnectResult();
+    rr->result = result;
+    if (!result) {
+        rr->card_protocol = card_protocol;
+    }
+
+    baton->result = rr;
+}
+
+void CardReader::AfterReconnect(uv_work_t* req, int status) {
+
+    NanScope();
+    Baton* baton = static_cast<Baton*>(req->data);
+    ReconnectInput *ri = static_cast<ReconnectInput*>(baton->input);
+    ReconnectResult *rr = static_cast<ReconnectResult*>(baton->result);
+
+    if (rr->result) {
+        Local<Value> err = NanError(error_msg("SCardReconnect", rr->result).c_str());
+        // Prepare the parameters for the callback function.
+        const unsigned argc = 1;
+        Handle<Value> argv[argc] = { err };
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
+    } else {
+        NanObjectWrapHandle(baton->reader)->Set(NanNew(connected_symbol), NanTrue());
+        const unsigned argc = 2;
+        Handle<Value> argv[argc] = {
+            NanNull(),
+            NanNew<Number>(rr->card_protocol)
+        };
+
+        NanCallback(NanNew(baton->callback)).Call(argc, argv);
+    }
+
+    // The callback is a permanent handle, so we have to dispose of it manually.
+    NanDisposePersistent(baton->callback);
+    delete ri;
+    delete rr;
     delete baton;
 }
 

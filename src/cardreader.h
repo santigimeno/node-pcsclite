@@ -39,6 +39,17 @@ class CardReader: public node::ObjectWrap {
         DWORD card_protocol;
     };
 
+    struct ReconnectInput {
+        DWORD share_mode;
+        DWORD pref_protocol;
+        DWORD action;
+    };
+
+    struct ReconnectResult {
+        LONG result;
+        DWORD card_protocol;
+    };
+
     struct TransmitInput {
         DWORD card_protocol;
         LPBYTE in_data;
@@ -97,6 +108,7 @@ class CardReader: public node::ObjectWrap {
         static NAN_METHOD(New);
         static NAN_METHOD(GetStatus);
         static NAN_METHOD(Connect);
+        static NAN_METHOD(Reconnect);
         static NAN_METHOD(Disconnect);
         static NAN_METHOD(Transmit);
         static NAN_METHOD(Control);
@@ -105,12 +117,14 @@ class CardReader: public node::ObjectWrap {
         static void HandleReaderStatusChange(uv_async_t *handle, int status);
         static void HandlerFunction(void* arg);
         static void DoConnect(uv_work_t* req);
+        static void DoReconnect(uv_work_t* req);
         static void DoDisconnect(uv_work_t* req);
         static void DoTransmit(uv_work_t* req);
         static void DoControl(uv_work_t* req);
         static void CloseCallback(uv_handle_t *handle);
 
         static void AfterConnect(uv_work_t* req, int status);
+        static void AfterReconnect(uv_work_t* req, int status);
         static void AfterDisconnect(uv_work_t* req, int status);
         static void AfterTransmit(uv_work_t* req, int status);
         static void AfterControl(uv_work_t* req, int status);
