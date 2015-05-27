@@ -1,7 +1,7 @@
 # node-pcsclite
 [![Gitter](https://badges.gitter.im/Join Chat.svg)](https://gitter.im/santigimeno/node-pcsclite?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
-Bindings over pcsclite to access Smart Cards
+Bindings over pcsclite to access Smart Cards. Starting with version **0.4.0** it works in **Linux**, **OS X** and **Windows**.
 
 ## Installation
 
