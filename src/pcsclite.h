@@ -9,7 +9,7 @@
 #include <winscard.h>
 #endif
 
-class PCSCLite: public node::ObjectWrap {
+class PCSCLite: public Nan::ObjectWrap {
 
     struct AsyncResult {
         LONG result;
@@ -20,7 +20,7 @@ class PCSCLite: public node::ObjectWrap {
 
     struct AsyncBaton {
         uv_async_t async;
-        v8::Persistent<v8::Function> callback;
+        Nan::Persistent<v8::Function> callback;
         PCSCLite *pcsclite;
         AsyncResult *async_result;
     };
@@ -35,7 +35,7 @@ class PCSCLite: public node::ObjectWrap {
 
         ~PCSCLite();
 
-        static v8::Persistent<v8::Function> constructor;
+        static Nan::Persistent<v8::Function> constructor;
         static NAN_METHOD(New);
         static NAN_METHOD(Start);
         static NAN_METHOD(Close);
