@@ -4,20 +4,20 @@
 using namespace v8;
 using namespace node;
 
-Persistent<Function> PCSCLite::constructor;
+Nan::Persistent<Function> PCSCLite::constructor;
 
 void PCSCLite::init(Handle<Object> target) {
 
     // Prepare constructor template
-    Local<FunctionTemplate> tpl = NanNew<FunctionTemplate>(New);
-    tpl->SetClassName(NanNew("PCSCLite"));
+    Local<FunctionTemplate> tpl = Nan::New<FunctionTemplate>(New);
+    tpl->SetClassName(Nan::New("PCSCLite").ToLocalChecked());
     tpl->InstanceTemplate()->SetInternalFieldCount(1);
     // Prototype
-    NanSetPrototypeTemplate(tpl, "start", NanNew<FunctionTemplate>(Start));
-    NanSetPrototypeTemplate(tpl, "close", NanNew<FunctionTemplate>(Close));
+    Nan::SetPrototypeTemplate(tpl, "start", Nan::New<FunctionTemplate>(Start));
+    Nan::SetPrototypeTemplate(tpl, "close", Nan::New<FunctionTemplate>(Close));
 
-    NanAssignPersistent<Function>(constructor, tpl->GetFunction());
-    target->Set(NanNew("PCSCLite"), tpl->GetFunction());
+    constructor.Reset(tpl->GetFunction());
+    target->Set(Nan::New("PCSCLite").ToLocalChecked(), tpl->GetFunction());
 }
 
 PCSCLite::PCSCLite(): m_card_context(0),
@@ -33,7 +33,7 @@ PCSCLite::PCSCLite(): m_card_context(0),
                                         NULL,
                                         &m_card_context);
     if (result != SCARD_S_SUCCESS) {
-        NanThrowError(error_msg("SCardEstablishContext", result).c_str());
+        Nan::ThrowError(error_msg("SCardEstablishContext", result).c_str());
     } else {
         m_card_reader_state.szReader = "\\\\?PnP?\\Notification";
         m_card_reader_state.dwCurrentState = SCARD_STATE_UNAWARE;
@@ -43,7 +43,7 @@ PCSCLite::PCSCLite(): m_card_context(0),
                                       1);
 
         if ((result != SCARD_S_SUCCESS) && (result != SCARD_E_TIMEOUT)) {
-            NanThrowError(error_msg("SCardGetStatusChange", result).c_str());
+            Nan::ThrowError(error_msg("SCardGetStatusChange", result).c_str());
         } else {
             m_pnp = !(m_card_reader_state.dwEventState & SCARD_STATE_UNKNOWN);
         }
@@ -63,36 +63,36 @@ PCSCLite::~PCSCLite() {
 }
 
 NAN_METHOD(PCSCLite::New) {
-    NanScope();
+    Nan::HandleScope scope;
     PCSCLite* obj = new PCSCLite();
-    obj->Wrap(args.Holder());
-    NanReturnValue(args.Holder());
+    obj->Wrap(info.Holder());
+    info.GetReturnValue().Set(info.Holder());
 }
 
 NAN_METHOD(PCSCLite::Start) {
 
-    NanScope();
+    Nan::HandleScope scope;
 
-    PCSCLite* obj = ObjectWrap::Unwrap<PCSCLite>(args.This());
-    Local<Function> cb = Local<Function>::Cast(args[0]);
+    PCSCLite* obj = Nan::ObjectWrap::Unwrap<PCSCLite>(info.This());
+    Local<Function> cb = Local<Function>::Cast(info[0]);
 
     AsyncBaton *async_baton = new AsyncBaton();
     async_baton->async.data = async_baton;
-    NanAssignPersistent(async_baton->callback, cb);
+    async_baton->callback.Reset(cb);
     async_baton->pcsclite = obj;
 
     uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
     int ret = uv_thread_create(&obj->m_status_thread, HandlerFunction, async_baton);
     assert(ret == 0);
 
-    NanReturnUndefined();
+
 }
 
 NAN_METHOD(PCSCLite::Close) {
 
-    NanScope();
+    Nan::HandleScope scope;
 
-    PCSCLite* obj = ObjectWrap::Unwrap<PCSCLite>(args.This());
+    PCSCLite* obj = Nan::ObjectWrap::Unwrap<PCSCLite>(info.This());
 
     LONG result = SCARD_S_SUCCESS;
     if (obj->m_pnp) {
@@ -114,12 +114,12 @@ NAN_METHOD(PCSCLite::Close) {
     assert(uv_thread_join(&obj->m_status_thread) == 0);
     obj->m_status_thread = 0;
 
-    NanReturnValue(NanNew<Number>(result));
+    info.GetReturnValue().Set(Nan::New<Number>(result));
 }
 
 void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
-    NanScope();
+    Nan::HandleScope scope;
 
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     AsyncResult* ar = async_baton->async_result;
@@ -132,17 +132,17 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
     if ((ar->result == SCARD_S_SUCCESS) || (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) {
         const unsigned argc = 2;
         Handle<Value> argv[argc] = {
-            NanUndefined(), // argument
-            NanNewBufferHandle(ar->readers_name, ar->readers_name_length)
+            Nan::Undefined(), // argument
+            Nan::NewBuffer(ar->readers_name, ar->readers_name_length).ToLocalChecked()
         };
 
-        NanCallback(NanNew(async_baton->callback)).Call(argc, argv);
+        Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
     } else {
-        Local<Value> err = NanError(error_msg("SCardListReaders", ar->result).c_str());
+        Local<Value> err = Nan::Error(error_msg("SCardListReaders", ar->result).c_str());
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Handle<Value> argv[argc] = { err };
-        NanCallback(NanNew(async_baton->callback)).Call(argc, argv);
+        Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
     }
 
     /* reset AsyncResult */
@@ -207,7 +207,7 @@ void PCSCLite::CloseCallback(uv_handle_t *handle) {
     AsyncResult* ar = async_baton->async_result;
     delete [] ar->readers_name;
     delete ar;
-    NanDisposePersistent(async_baton->callback);
+    async_baton->callback.Reset();
     delete async_baton;
 }
 

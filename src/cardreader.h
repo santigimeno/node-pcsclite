@@ -15,15 +15,15 @@
 #define MAX_ATR_SIZE 33
 #endif
 
-static v8::Persistent<v8::String> name_symbol;
-static v8::Persistent<v8::String> connected_symbol;
+static Nan::Persistent<v8::String> name_symbol;
+static Nan::Persistent<v8::String> connected_symbol;
 
-class CardReader: public node::ObjectWrap {
+class CardReader: public Nan::ObjectWrap {
 
     // We use a struct to store information about the asynchronous "work request".
     struct Baton {
         uv_work_t request;
-        v8::Persistent<v8::Function> callback;
+        Nan::Persistent<v8::Function> callback;
         CardReader *reader;
         void *input;
         void *result;
@@ -75,7 +75,7 @@ class CardReader: public node::ObjectWrap {
 
     struct AsyncBaton {
         uv_async_t async;
-        v8::Persistent<v8::Function> callback;
+        Nan::Persistent<v8::Function> callback;
         CardReader *reader;
         AsyncResult *async_result;
     };
@@ -92,7 +92,7 @@ class CardReader: public node::ObjectWrap {
 
         ~CardReader();
 
-        static v8::Persistent<v8::Function> constructor;
+        static Nan::Persistent<v8::Function> constructor;
 
         static NAN_METHOD(New);
         static NAN_METHOD(GetStatus);
