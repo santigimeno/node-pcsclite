@@ -532,7 +532,8 @@ void CardReader::DoTransmit(uv_work_t* req) {
     TransmitInput *ti = static_cast<TransmitInput*>(baton->input);
     CardReader* obj = baton->reader;
 
-    SCARD_IO_REQUEST io_request;
+    /* Initialize SCARD_IO_REQUEST to zero */
+    SCARD_IO_REQUEST io_request = SCARD_IO_REQUEST();
     TransmitResult *tr = new TransmitResult();
     tr->data = new unsigned char[ti->out_len];
     tr->len = ti->out_len;
