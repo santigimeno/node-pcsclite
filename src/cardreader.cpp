@@ -540,7 +540,7 @@ void CardReader::DoTransmit(uv_work_t* req) {
     /* Lock mutex */
     uv_mutex_lock(&obj->m_mutex);
     /* Connected? */
-	// Under windows, SCARD_IO_REQUEST param must be NULL. Else error RPC_X_BAD_STUB_DATA / 0x06F7 on each call.
+    // Under windows, SCARD_IO_REQUEST param must be NULL. Else error RPC_X_BAD_STUB_DATA / 0x06F7 on each call.
     if (obj->m_card_handle) {
         SCARD_IO_REQUEST send_pci = { ti->card_protocol, sizeof(SCARD_IO_REQUEST) };
         result = SCardTransmit(obj->m_card_handle, &send_pci, ti->in_data, ti->in_len,
