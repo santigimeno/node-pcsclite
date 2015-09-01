@@ -133,7 +133,7 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
         const unsigned argc = 2;
         Local<Value> argv[argc] = {
             Nan::Undefined(), // argument
-            Nan::NewBuffer(ar->readers_name, ar->readers_name_length).ToLocalChecked()
+            Nan::CopyBuffer(ar->readers_name, ar->readers_name_length).ToLocalChecked()
         };
 
         Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);

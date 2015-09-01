@@ -344,7 +344,7 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
         Local<Value> argv[argc] = {
             Nan::Undefined(), // argument
             Nan::New<Number>(ar->status),
-            Nan::NewBuffer(reinterpret_cast<char*>(ar->atr), ar->atrlen).ToLocalChecked()
+            Nan::CopyBuffer(reinterpret_cast<char*>(ar->atr), ar->atrlen).ToLocalChecked()
         };
 
         Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
@@ -573,7 +573,7 @@ void CardReader::AfterTransmit(uv_work_t* req, int status) {
         const unsigned argc = 2;
         Local<Value> argv[argc] = {
             Nan::Null(),
-            Nan::NewBuffer(reinterpret_cast<char*>(tr->data), tr->len).ToLocalChecked()
+            Nan::CopyBuffer(reinterpret_cast<char*>(tr->data), tr->len).ToLocalChecked()
         };
 
         Nan::Callback(Nan::New(baton->callback)).Call(argc, argv);
