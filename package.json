@@ -4,7 +4,7 @@
     "engines": {
         "node": ">=0.8.0 < 4"
     },
-    "description": "Bindings over pcsclite to access Smart Cards",
+    "description": "Bindings over PC/SC to access Smart Cards",
     "main": "index.js",
     "directories": {
         "test": "test"
