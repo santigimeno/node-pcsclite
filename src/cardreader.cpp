@@ -364,7 +364,10 @@ void CardReader::HandlerFunction(void* arg) {
     async_baton->async_result = new AsyncResult();
     async_baton->async_result->do_exit = false;
 
-    LONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &reader->m_status_card_context);
+    ULONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM, NULL, NULL, &reader->m_status_card_context);
+    ULONG waitTime = INFINITE;
+    ULONG waitTimeIncrement = 10; //ms
+    ULONG waitTimeMax = 100; //ms
 
     SCARD_READERSTATE card_reader_state = SCARD_READERSTATE();
     card_reader_state.szReader = reader->m_name.c_str();
@@ -373,29 +376,51 @@ void CardReader::HandlerFunction(void* arg) {
     bool keep_watching(result == SCARD_S_SUCCESS);
     while (keep_watching) {
 
-        result = SCardGetStatusChange(reader->m_status_card_context, INFINITE, &card_reader_state, 1);
-        keep_watching = ((result == SCARD_S_SUCCESS) &&
-                         (!reader->m_state) &&
-                         (!((card_reader_state.dwCurrentState & SCARD_STATE_UNKNOWN) ||
-                         (card_reader_state.dwCurrentState & SCARD_STATE_UNAVAILABLE))));
+        //printf("%s => waiting %ums\n", reader->m_name.c_str(), waitTime);
+        result = SCardGetStatusChange(reader->m_status_card_context, waitTime, &card_reader_state, 1);
+        keep_watching = (
+                            (
+                                (result == SCARD_S_SUCCESS) ||
+                                (result == SCARD_E_TIMEOUT)
+                            ) &&
+                            (!reader->m_state) &&
+                            (!(
+                                (card_reader_state.dwEventState & SCARD_STATE_UNKNOWN) ||
+                                (card_reader_state.dwEventState & SCARD_STATE_UNAVAILABLE)
+                            ))
+                        );
 
-        uv_mutex_lock(&reader->m_mutex);
-        if (reader->m_state == 1) {
-            uv_cond_signal(&reader->m_cond);
+        //printf("%s => %u | %u, %d\n", reader->m_name.c_str(), card_reader_state.dwEventState, result, keep_watching);
+        if (result == SCARD_S_SUCCESS) {
+
+            waitTime = waitTimeIncrement;
+            uv_mutex_lock(&reader->m_mutex);
+            if (reader->m_state == 1) {
+                uv_cond_signal(&reader->m_cond);
+            }
+
+            if (!keep_watching) {
+                reader->m_state = 2;
+            }
+
+            uv_mutex_unlock(&reader->m_mutex);
+
+            async_baton->async_result->result = result;
+            async_baton->async_result->status = card_reader_state.dwEventState;
+            memcpy(async_baton->async_result->atr, card_reader_state.rgbAtr, card_reader_state.cbAtr);
+            async_baton->async_result->atrlen = card_reader_state.cbAtr;
+            uv_async_send(&async_baton->async);
+            card_reader_state.dwCurrentState = card_reader_state.dwEventState;
+
+        } else if (result == SCARD_E_TIMEOUT) {
+
+            if (waitTime < waitTimeMax) {
+                waitTime += waitTimeIncrement;
+            } else {
+                waitTime = INFINITE;
+            }
+
         }
-
-        if (!keep_watching) {
-            reader->m_state = 2;
-        }
-
-        uv_mutex_unlock(&reader->m_mutex);
-
-        async_baton->async_result->result = result;
-        async_baton->async_result->status = card_reader_state.dwEventState;
-        memcpy(async_baton->async_result->atr, card_reader_state.rgbAtr, card_reader_state.cbAtr);
-        async_baton->async_result->atrlen = card_reader_state.cbAtr;
-        uv_async_send(&async_baton->async);
-        card_reader_state.dwCurrentState = card_reader_state.dwEventState;
     }
 
     async_baton->async_result->do_exit = true;
