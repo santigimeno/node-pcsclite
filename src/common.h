@@ -37,6 +37,13 @@ namespace {
                  result);
 
         LocalFree(lpMsgBuf);
+#elif  __APPLE__
+        snprintf(msg,
+                 ERR_MSG_MAX_LEN,
+                 "%s error: %s(0x%.8x)",
+                 method,
+                 pcsc_stringify_error(result),
+                 result);   
 #else
         snprintf(msg,
                  ERR_MSG_MAX_LEN,
