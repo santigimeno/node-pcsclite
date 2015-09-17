@@ -42,7 +42,7 @@ PCSCLite::PCSCLite(): m_card_context(0),
                                       &m_card_reader_state,
                                       1);
 
-        if ((result != SCARD_S_SUCCESS) && (result != SCARD_E_TIMEOUT)) {
+        if ((result != SCARD_S_SUCCESS) && (result != (LONG)SCARD_E_TIMEOUT)) {
             Nan::ThrowError(error_msg("SCardGetStatusChange", result).c_str());
         } else {
             m_pnp = !(m_card_reader_state.dwEventState & SCARD_STATE_UNKNOWN);
@@ -162,7 +162,7 @@ void PCSCLite::HandlerFunction(void* arg) {
     while (!pcsclite->m_state && (result == SCARD_S_SUCCESS)) {
         /* Get card readers */
         result = pcsclite->get_card_readers(pcsclite, async_baton->async_result);
-        if (result == SCARD_E_NO_READERS_AVAILABLE) {
+        if (result == (LONG)SCARD_E_NO_READERS_AVAILABLE) {
             result = SCARD_S_SUCCESS;
         }
 
