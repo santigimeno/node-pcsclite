@@ -310,12 +310,12 @@ NAN_METHOD(CardReader::Close) {
         } while (uv_cond_timedwait(&obj->m_cond, &obj->m_mutex, 10000000) != 0);
     }
 
+    assert(uv_thread_join(&obj->m_status_thread) == 0);
+    obj->m_status_thread = 0;
+
     uv_mutex_unlock(&obj->m_mutex);
     uv_mutex_destroy(&obj->m_mutex);
     uv_cond_destroy(&obj->m_cond);
-
-    assert(uv_thread_join(&obj->m_status_thread) == 0);
-    obj->m_status_thread = 0;
 
     info.GetReturnValue().Set(Nan::New<Number>(result));
 }
@@ -325,6 +325,12 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
     Nan::HandleScope scope;
 
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
+    CardReader* reader = async_baton->reader;
+
+    if (reader->m_status_thread) {
+        uv_mutex_lock(&reader->m_mutex);
+    }
+
     AsyncResult* ar = async_baton->async_result;
 
     if (ar->do_exit) {
@@ -336,24 +342,27 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
         };
 
         Nan::MakeCallback(async_baton->reader->handle(), "emit", 1, argv);
-        return;
+    } else {
+        if (ar->result == SCARD_S_SUCCESS) {
+            const unsigned argc = 3;
+            Local<Value> argv[argc] = {
+                Nan::Undefined(), // argument
+                Nan::New<Number>(ar->status),
+                Nan::CopyBuffer(reinterpret_cast<char*>(ar->atr), ar->atrlen).ToLocalChecked()
+            };
+
+            Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+        } else {
+            Local<Value> err = Nan::Error(error_msg("SCardGetStatusChange", ar->result).c_str());
+            // Prepare the parameters for the callback function.
+            const unsigned argc = 1;
+            Local<Value> argv[argc] = { err };
+            Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+        }
     }
 
-    if (ar->result == SCARD_S_SUCCESS) {
-        const unsigned argc = 3;
-        Local<Value> argv[argc] = {
-            Nan::Undefined(), // argument
-            Nan::New<Number>(ar->status),
-            Nan::CopyBuffer(reinterpret_cast<char*>(ar->atr), ar->atrlen).ToLocalChecked()
-        };
-
-        Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
-    } else {
-        Local<Value> err = Nan::Error(error_msg("SCardGetStatusChange", ar->result).c_str());
-        // Prepare the parameters for the callback function.
-        const unsigned argc = 1;
-        Local<Value> argv[argc] = { err };
-        Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+    if (reader->m_status_thread) {
+        uv_mutex_unlock(&reader->m_mutex);
     }
 }
 
