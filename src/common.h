@@ -16,7 +16,7 @@
 
 namespace {
 
-    std::string error_msg(const char* method, LONG result) {
+    std::string error_msg(const char* method, ULONG result) {
         char msg[ERR_MSG_MAX_LEN];
 #ifdef _WIN32
         LPVOID lpMsgBuf;
@@ -47,7 +47,7 @@ namespace {
 #else
         snprintf(msg,
                  ERR_MSG_MAX_LEN,
-                 "%s error: %s(0x%.8lx)",
+                 "%s error: %s(0x%.8ux)",
                  method,
                  pcsc_stringify_error(result),
                  result);
