@@ -327,7 +327,12 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     AsyncResult* ar = async_baton->async_result;
 
+    uv_mutex_lock(&async_baton->reader->m_mutex);
+    fprintf(stderr, "StatusChange: %ld, exit:%d\n", ar->status, ar->do_exit);
+
     if (ar->do_exit) {
+        fprintf(stderr, "EXITING: %d\n", ar->do_exit);
+        uv_mutex_unlock(&async_baton->reader->m_mutex);
         uv_close(reinterpret_cast<uv_handle_t*>(&async_baton->async), CloseCallback); // necessary otherwise UV will block
 
         /* Emit end event */
@@ -339,6 +344,7 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
         return;
     }
 
+    uv_mutex_unlock(&async_baton->reader->m_mutex);
     if (ar->result == SCARD_S_SUCCESS) {
         const unsigned argc = 3;
         Local<Value> argv[argc] = {
@@ -374,6 +380,7 @@ void CardReader::HandlerFunction(void* arg) {
     while (keep_watching) {
 
         result = SCardGetStatusChange(reader->m_status_card_context, INFINITE, &card_reader_state, 1);
+        if (card_reader_state.dwCurrentState == 14) card_reader_state.dwCurrentState = 6;
         keep_watching = ((result == SCARD_S_SUCCESS) &&
                          (!reader->m_state) &&
                          (!((card_reader_state.dwCurrentState & SCARD_STATE_UNKNOWN) ||
@@ -398,7 +405,9 @@ void CardReader::HandlerFunction(void* arg) {
         card_reader_state.dwCurrentState = card_reader_state.dwEventState;
     }
 
+    uv_mutex_lock(&reader->m_mutex);
     async_baton->async_result->do_exit = true;
+    uv_mutex_unlock(&reader->m_mutex);
     uv_async_send(&async_baton->async);
 }
 
