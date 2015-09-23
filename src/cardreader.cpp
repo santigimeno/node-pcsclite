@@ -383,10 +383,7 @@ void CardReader::HandlerFunction(void* arg) {
     while (keep_watching) {
 
         result = SCardGetStatusChange(reader->m_status_card_context, INFINITE, &card_reader_state, 1);
-        keep_watching = ((result == SCARD_S_SUCCESS) &&
-                         (!reader->m_state) &&
-                         (!((card_reader_state.dwEventState & SCARD_STATE_UNKNOWN) ||
-                         (card_reader_state.dwEventState & SCARD_STATE_UNAVAILABLE))));
+        keep_watching = (result == SCARD_S_SUCCESS) && (!reader->m_state);
 
         uv_mutex_lock(&reader->m_mutex);
         if (reader->m_state == 1) {
