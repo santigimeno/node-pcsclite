@@ -333,6 +333,24 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
     AsyncResult* ar = async_baton->async_result;
 
+    if ((ar->result == SCARD_S_SUCCESS) || (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) {
+        const unsigned argc = 3;
+        Local<Value> argv[argc] = {
+            Nan::Undefined(), // argument
+            Nan::New<Number>(ar->status),
+            Nan::CopyBuffer(reinterpret_cast<char*>(ar->atr), ar->atrlen).ToLocalChecked()
+        };
+
+        Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+    } else {
+        Local<Value> err = Nan::Error(error_msg("SCardGetStatusChange", ar->result).c_str());
+        // Prepare the parameters for the callback function.
+        const unsigned argc = 1;
+        Local<Value> argv[argc] = { err };
+        Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+    }
+
+    // Do exit, after throwing last events
     if (ar->do_exit) {
         uv_close(reinterpret_cast<uv_handle_t*>(&async_baton->async), CloseCallback); // necessary otherwise UV will block
 
@@ -342,23 +360,6 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
         };
 
         Nan::MakeCallback(async_baton->reader->handle(), "emit", 1, argv);
-    } else {
-        if (ar->result == SCARD_S_SUCCESS) {
-            const unsigned argc = 3;
-            Local<Value> argv[argc] = {
-                Nan::Undefined(), // argument
-                Nan::New<Number>(ar->status),
-                Nan::CopyBuffer(reinterpret_cast<char*>(ar->atr), ar->atrlen).ToLocalChecked()
-            };
-
-            Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
-        } else {
-            Local<Value> err = Nan::Error(error_msg("SCardGetStatusChange", ar->result).c_str());
-            // Prepare the parameters for the callback function.
-            const unsigned argc = 1;
-            Local<Value> argv[argc] = { err };
-            Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
-        }
     }
 
     if (reader->m_status_thread) {
@@ -392,20 +393,21 @@ void CardReader::HandlerFunction(void* arg) {
 
         if (!keep_watching) {
             reader->m_state = 2;
+            async_baton->async_result->do_exit = true;
         }
-
-        uv_mutex_unlock(&reader->m_mutex);
 
         async_baton->async_result->result = result;
         async_baton->async_result->status = card_reader_state.dwEventState;
         memcpy(async_baton->async_result->atr, card_reader_state.rgbAtr, card_reader_state.cbAtr);
         async_baton->async_result->atrlen = card_reader_state.cbAtr;
+
+        uv_mutex_unlock(&reader->m_mutex);
+
         uv_async_send(&async_baton->async);
         card_reader_state.dwCurrentState = card_reader_state.dwEventState;
     }
 
-    async_baton->async_result->do_exit = true;
-    uv_async_send(&async_baton->async);
+    // Exit flag set in keepwatching and handled in following uv_async_send  
 }
 
 void CardReader::DoConnect(uv_work_t* req) {
