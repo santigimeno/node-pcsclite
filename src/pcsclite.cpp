@@ -124,11 +124,6 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     AsyncResult* ar = async_baton->async_result;
 
-    if (ar->do_exit) {
-        uv_close(reinterpret_cast<uv_handle_t*>(&async_baton->async), CloseCallback); // necessary otherwise UV will block
-        return;
-    }
-
     if ((ar->result == SCARD_S_SUCCESS) || (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) {
         const unsigned argc = 2;
         Local<Value> argv[argc] = {
@@ -143,6 +138,12 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
         const unsigned argc = 1;
         Local<Value> argv[argc] = { err };
         Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+    }
+
+    // Do exit, after throwing last events
+    if (ar->do_exit) {
+        uv_close(reinterpret_cast<uv_handle_t*>(&async_baton->async), CloseCallback); // necessary otherwise UV will block
+        return;
     }
 
     /* reset AsyncResult */
