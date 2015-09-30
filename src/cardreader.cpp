@@ -80,7 +80,7 @@ CardReader::~CardReader() {
 }
 
 NAN_METHOD(CardReader::New) {
-
+ 
     Nan::HandleScope scope;
 
     v8::String::Utf8Value reader_name(info[0]->ToString());
@@ -333,7 +333,10 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
     AsyncResult* ar = async_baton->async_result;
 
-    if ((ar->result == SCARD_S_SUCCESS) || (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) {
+    if (reader->m_state == 1) {
+        // Swallow events : Listening thread was cancelled by user.
+    } else if ((ar->result == SCARD_S_SUCCESS) ||
+        (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) { // Card reader was unplugged, it's not an error
         const unsigned argc = 3;
         Local<Value> argv[argc] = {
             Nan::Undefined(), // argument
@@ -380,21 +383,18 @@ void CardReader::HandlerFunction(void* arg) {
     card_reader_state.szReader = reader->m_name.c_str();
     card_reader_state.dwCurrentState = SCARD_STATE_UNAWARE;
 
-    bool keep_watching(result == SCARD_S_SUCCESS);
-    while (keep_watching) {
-
+    while (!reader->m_state) {
         result = SCardGetStatusChange(reader->m_status_card_context, INFINITE, &card_reader_state, 1);
-        keep_watching = (result == SCARD_S_SUCCESS) && (!reader->m_state);
 
         uv_mutex_lock(&reader->m_mutex);
         if (reader->m_state == 1) {
+            // Exit requested by user. Notify close method about SCardStatusChange was interrupted.
             uv_cond_signal(&reader->m_cond);
-        }
-
-        if (!keep_watching) {
+        } else if (result != (LONG)SCARD_S_SUCCESS) {
+            // Exit this loop due to errors
             reader->m_state = 2;
-            async_baton->async_result->do_exit = true;
         }
+        async_baton->async_result->do_exit = (reader->m_state != 0);
 
         async_baton->async_result->result = result;
         async_baton->async_result->status = card_reader_state.dwEventState;
