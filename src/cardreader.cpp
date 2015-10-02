@@ -337,7 +337,8 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
     if (reader->m_state == 1) {
         // Swallow events : Listening thread was cancelled by user.
     } else if ((ar->result == SCARD_S_SUCCESS) ||
-        (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) { // Card reader was unplugged, it's not an error
+               (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE) ||
+               (ar->result == (LONG)SCARD_E_UNKNOWN_READER)) { // Card reader was unplugged, it's not an error
         const unsigned argc = 3;
         Local<Value> argv[argc] = {
             Nan::Undefined(), // argument
