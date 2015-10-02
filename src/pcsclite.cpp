@@ -53,13 +53,16 @@ PCSCLite::PCSCLite(): m_card_context(0),
 PCSCLite::~PCSCLite() {
 
     if (m_status_thread) {
-        int ret = uv_thread_join(&m_status_thread);
-        assert(ret == 0);
+        SCardCancel(m_card_context);
+        assert(uv_thread_join(&m_status_thread) == 0);
     }
 
     if (m_card_context) {
         SCardReleaseContext(m_card_context);
     }
+
+    uv_cond_destroy(&m_cond);
+    uv_mutex_destroy(&m_mutex);
 }
 
 NAN_METHOD(PCSCLite::New) {
@@ -96,23 +99,25 @@ NAN_METHOD(PCSCLite::Close) {
 
     LONG result = SCARD_S_SUCCESS;
     if (obj->m_pnp) {
-        uv_mutex_lock(&obj->m_mutex);
-        if (obj->m_state == 0) {
-            obj->m_state = 1;
-            do {
-                result = SCardCancel(obj->m_card_context);
-            } while (uv_cond_timedwait(&obj->m_cond, &obj->m_mutex, 10000000) != 0);
-        }
+        if (obj->m_status_thread) {
+            uv_mutex_lock(&obj->m_mutex);
+            if (obj->m_state == 0) {
+                obj->m_state = 1;
+                do {
+                    result = SCardCancel(obj->m_card_context);
+                } while (uv_cond_timedwait(&obj->m_cond, &obj->m_mutex, 10000000) != 0);
+            }
 
-        uv_mutex_unlock(&obj->m_mutex);
-        uv_mutex_destroy(&obj->m_mutex);
-        uv_cond_destroy(&obj->m_cond);
+            uv_mutex_unlock(&obj->m_mutex);
+        }
     } else {
         obj->m_state = 1;
     }
 
-    assert(uv_thread_join(&obj->m_status_thread) == 0);
-    obj->m_status_thread = 0;
+    if (obj->m_status_thread) {
+        assert(uv_thread_join(&obj->m_status_thread) == 0);
+        obj->m_status_thread = 0;
+    }
 
     info.GetReturnValue().Set(Nan::New<Number>(result));
 }

@@ -68,14 +68,16 @@ CardReader::CardReader(const std::string &reader_name): m_card_context(0),
 }
 
 CardReader::~CardReader() {
-    SCardCancel(m_card_context);
-    int ret = uv_thread_join(&m_status_thread);
-    assert(ret == 0);
+    if (m_status_thread) {
+        SCardCancel(m_card_context);
+        assert(uv_thread_join(&m_status_thread) == 0);
+    }
 
     if (m_card_context) {
         SCardReleaseContext(m_card_context);
     }
 
+    uv_cond_destroy(&m_cond);
     uv_mutex_destroy(&m_mutex);
 }
 
@@ -302,20 +304,19 @@ NAN_METHOD(CardReader::Close) {
     LONG result = SCARD_S_SUCCESS;
     CardReader* obj = Nan::ObjectWrap::Unwrap<CardReader>(info.This());
 
-    uv_mutex_lock(&obj->m_mutex);
-    if (obj->m_state == 0) {
-        obj->m_state = 1;
-        do {
-            result = SCardCancel(obj->m_status_card_context);
-        } while (uv_cond_timedwait(&obj->m_cond, &obj->m_mutex, 10000000) != 0);
+    if (obj->m_status_thread) {
+        uv_mutex_lock(&obj->m_mutex);
+        if (obj->m_state == 0) {
+            obj->m_state = 1;
+            do {
+                result = SCardCancel(obj->m_status_card_context);
+            } while (uv_cond_timedwait(&obj->m_cond, &obj->m_mutex, 10000000) != 0);
+        }
+
+        assert(uv_thread_join(&obj->m_status_thread) == 0);
+        obj->m_status_thread = 0;
+        uv_mutex_unlock(&obj->m_mutex);
     }
-
-    assert(uv_thread_join(&obj->m_status_thread) == 0);
-    obj->m_status_thread = 0;
-
-    uv_mutex_unlock(&obj->m_mutex);
-    uv_mutex_destroy(&obj->m_mutex);
-    uv_cond_destroy(&obj->m_cond);
 
     info.GetReturnValue().Set(Nan::New<Number>(result));
 }
@@ -407,7 +408,7 @@ void CardReader::HandlerFunction(void* arg) {
         card_reader_state.dwCurrentState = card_reader_state.dwEventState;
     }
 
-    // Exit flag set in keepwatching and handled in following uv_async_send  
+    // Exit flag set in keepwatching and handled in following uv_async_send
 }
 
 void CardReader::DoConnect(uv_work_t* req) {
