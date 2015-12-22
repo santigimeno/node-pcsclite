@@ -124,12 +124,10 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     AsyncResult* ar = async_baton->async_result;
 
-    if (ar->do_exit) {
-        uv_close(reinterpret_cast<uv_handle_t*>(&async_baton->async), CloseCallback); // necessary otherwise UV will block
-        return;
-    }
-
-    if ((ar->result == SCARD_S_SUCCESS) || (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) {
+    if (async_baton->pcsclite->m_state == 1) {
+        // Swallow events : Listening thread was cancelled by user.
+    } else if ((ar->result == SCARD_S_SUCCESS) ||
+               (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) {
         const unsigned argc = 2;
         Local<Value> argv[argc] = {
             Nan::Undefined(), // argument
@@ -143,6 +141,13 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
         const unsigned argc = 1;
         Local<Value> argv[argc] = { err };
         Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+    }
+
+    // Do exit, after throwing last events
+    if (ar->do_exit) {
+        // necessary otherwise UV will block
+        uv_close(reinterpret_cast<uv_handle_t*>(&async_baton->async), CloseCallback);
+        return;
     }
 
     /* reset AsyncResult */
@@ -159,7 +164,7 @@ void PCSCLite::HandlerFunction(void* arg) {
     PCSCLite* pcsclite = async_baton->pcsclite;
     async_baton->async_result = new AsyncResult();
 
-    while (!pcsclite->m_state && (result == SCARD_S_SUCCESS)) {
+    while (!pcsclite->m_state) {
         /* Get card readers */
         result = pcsclite->get_card_readers(pcsclite, async_baton->async_result);
         if (result == (LONG)SCARD_E_NO_READERS_AVAILABLE) {
@@ -180,6 +185,7 @@ void PCSCLite::HandlerFunction(void* arg) {
                                           INFINITE,
                                           &pcsclite->m_card_reader_state,
                                           1);
+
             uv_mutex_lock(&pcsclite->m_mutex);
             if (pcsclite->m_state) {
                 uv_cond_signal(&pcsclite->m_cond);
@@ -190,9 +196,12 @@ void PCSCLite::HandlerFunction(void* arg) {
             }
 
             uv_mutex_unlock(&pcsclite->m_mutex);
-        } else {
+        } else if (result == SCARD_S_SUCCESS) {
             /*  If PnP is not supported, just wait for 1 second */
             Sleep(1000);
+        } else {
+            /* Error on last card access and no PnP, stop monitoring */
+            pcsclite->m_state = 2;
         }
     }
 
