@@ -340,9 +340,10 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
     if (reader->m_state == 1) {
         // Swallow events : Listening thread was cancelled by user.
     } else if ((ar->result == SCARD_S_SUCCESS) ||
-               (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE)) { // Card reader was unplugged, it's not an error
-        if (ar->result == SCARD_S_SUCCESS) {
-            const unsigned argc = 3;
+               (ar->result == (LONG)SCARD_E_NO_READERS_AVAILABLE) ||
+               (ar->result == (LONG)SCARD_E_UNKNOWN_READER)) { // Card reader was unplugged, it's not an error
+        if (ar->status != 0) {
+            const unsigned int argc = 3;
             Local<Value> argv[argc] = {
                 Nan::Undefined(), // argument
                 Nan::New<Number>(ar->status),
@@ -350,13 +351,13 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
             };
 
             Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
-        } else {
-            Local<Value> err = Nan::Error(error_msg("SCardGetStatusChange", ar->result).c_str());
-            // Prepare the parameters for the callback function.
-            const unsigned argc = 1;
-            Local<Value> argv[argc] = { err };
-            Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
         }
+    } else {
+        Local<Value> err = Nan::Error(error_msg("SCardGetStatusChange", ar->result).c_str());
+        // Prepare the parameters for the callback function.
+        const unsigned int argc = 1;
+        Local<Value> argv[argc] = { err };
+        Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
     }
 
     if (ar->do_exit) {
@@ -403,7 +404,11 @@ void CardReader::HandlerFunction(void* arg) {
 
         async_baton->async_result->do_exit = (reader->m_state != 0);
         async_baton->async_result->result = result;
-        async_baton->async_result->status = card_reader_state.dwEventState;
+        if (card_reader_state.dwEventState == card_reader_state.dwCurrentState) {
+            async_baton->async_result->status = 0;
+        } else {
+            async_baton->async_result->status = card_reader_state.dwEventState;
+        }
         memcpy(async_baton->async_result->atr, card_reader_state.rgbAtr, card_reader_state.cbAtr);
         async_baton->async_result->atrlen = card_reader_state.cbAtr;
 
