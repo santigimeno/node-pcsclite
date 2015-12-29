@@ -222,7 +222,12 @@ void PCSCLite::CloseCallback(uv_handle_t *handle) {
     /* cleanup process */
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     AsyncResult* ar = async_baton->async_result;
+#ifdef SCARD_AUTOALLOCATE
+    PCSCLite* pcsclite = async_baton->pcsclite;
+    SCardFreeMemory(pcsclite->m_card_context, ar->readers_name);
+#else
     delete [] ar->readers_name;
+#endif
     delete ar;
     async_baton->callback.Reset();
     delete async_baton;
@@ -230,31 +235,58 @@ void PCSCLite::CloseCallback(uv_handle_t *handle) {
 
 LONG PCSCLite::get_card_readers(PCSCLite* pcsclite, AsyncResult* async_result) {
 
+    DWORD readers_name_length;
+    LPTSTR readers_name;
+
     LONG result = SCARD_S_SUCCESS;
 
     /* Reset the readers_name in the baton */
     async_result->readers_name = NULL;
     async_result->readers_name_length = 0;
 
+#ifdef SCARD_AUTOALLOCATE
+    readers_name_length = SCARD_AUTOALLOCATE;
+    result = SCardListReaders(pcsclite->m_card_context,
+                              NULL,
+                              (LPTSTR)&readers_name,
+                              &readers_name_length);
+#else
     /* Find out ReaderNameLength */
-    DWORD readers_name_length;
-    result = SCardListReaders(pcsclite->m_card_context, NULL, NULL, &readers_name_length);
+    result = SCardListReaders(pcsclite->m_card_context,
+                              NULL,
+                              NULL,
+                              &readers_name_length);
     if (result != SCARD_S_SUCCESS) {
         return result;
     }
 
-    /* Allocate Memory for ReaderName  and retrieve all readers in the terminal */
-    char* readers_name  = new char[readers_name_length];
-    result = SCardListReaders(pcsclite->m_card_context, NULL, readers_name, &readers_name_length);
+    /*
+     * Allocate Memory for ReaderName and retrieve all readers in the terminal
+     */
+    readers_name = new char[readers_name_length];
+    result = SCardListReaders(pcsclite->m_card_context,
+                              NULL,
+                              readers_name,
+                              &readers_name_length);
+#endif
+
     if (result != SCARD_S_SUCCESS) {
+#ifndef SCARD_AUTOALLOCATE
         delete [] readers_name;
+#endif
         readers_name = NULL;
         readers_name_length = 0;
+#ifndef SCARD_AUTOALLOCATE
+        /* Retry in case of insufficient buffer error */
+        if (result == SCARD_E_INSUFFICIENT_BUFFER) {
+            result = get_card_readers(pcsclite, async_result);
+        }
+#endif
+    } else {
+        /* Store the readers_name in the baton */
+        async_result->readers_name = readers_name;
+        async_result->readers_name_length = readers_name_length;
     }
-
-    /* Store the readers_name in the baton */
-    async_result->readers_name = readers_name;
-    async_result->readers_name_length = readers_name_length;
 
     return result;
 }
