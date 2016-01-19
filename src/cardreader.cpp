@@ -106,9 +106,11 @@ NAN_METHOD(CardReader::GetStatus) {
     async_baton->callback.Reset(cb);
     async_baton->reader = obj;
 
-    uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
-    int ret = uv_thread_create(&obj->m_status_thread, HandlerFunction, async_baton);
-    assert(ret == 0);
+    int r = uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
+    fprintf(stderr, "CardReader::GetStatus - uv_async_init : %d\n", r);
+    assert(r == 0);
+    r = uv_thread_create(&obj->m_status_thread, HandlerFunction, async_baton);
+    assert(r == 0);
 
 
 }
@@ -384,6 +386,7 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
 void CardReader::HandlerFunction(void* arg) {
 
+    int r;
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(arg);
     CardReader* reader = async_baton->reader;
     async_baton->async_result = new AsyncResult();
@@ -430,7 +433,9 @@ void CardReader::HandlerFunction(void* arg) {
 
         uv_mutex_unlock(&reader->m_mutex);
 
-        uv_async_send(&async_baton->async);
+        r = uv_async_send(&async_baton->async);
+        fprintf(stderr, "CardReader::HandlerFunction - uv_async_send : %d\n", r);
+        assert(r == 0);
         card_reader_state.dwCurrentState = card_reader_state.dwEventState;
     }
 
