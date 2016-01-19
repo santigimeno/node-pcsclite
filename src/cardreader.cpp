@@ -331,11 +331,17 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     CardReader* reader = async_baton->reader;
 
+    fprintf(stderr, "CardReader::HandleReaderStatusChange - BEFORE LOCK\n");
+
     if (reader->m_status_thread) {
         uv_mutex_lock(&reader->m_mutex);
     }
 
     AsyncResult* ar = async_baton->async_result;
+
+    fprintf(stderr,
+            "CardReader::HandleReaderStatusChange - m_state: %d, result: %08lx, status: %lu, do_exit: %d\n",
+            reader->m_state, ar->result, ar->status, ar->do_exit);
 
     if (reader->m_state == 1) {
         // Swallow events : Listening thread was cancelled by user.
@@ -391,9 +397,19 @@ void CardReader::HandlerFunction(void* arg) {
 
     while (!reader->m_state) {
 
+        fprintf(stderr, "CardReader::HandlerFunction - BEFORE SCardGetStatusChange\n");
+
         result = SCardGetStatusChange(reader->m_status_card_context, INFINITE, &card_reader_state, 1);
 
+        fprintf(stderr, "CardReader::HandlerFunction - AFTER SCardGetStatusChange"
+                        " result: %08lx, cur: %lu, new: %lu\n",
+                        result, card_reader_state.dwCurrentState, card_reader_state.dwEventState);
+
         uv_mutex_lock(&reader->m_mutex);
+
+        fprintf(stderr, "CardReader::HandlerFunction - AFTER MUTEX LOCK"
+                            " m_state: %d\n", reader->m_state);
+
         if (reader->m_state == 1) {
             // Exit requested by user. Notify close method about SCardStatusChange was interrupted.
             uv_cond_signal(&reader->m_cond);

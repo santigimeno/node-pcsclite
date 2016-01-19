@@ -132,6 +132,10 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
     AsyncResult* ar = async_baton->async_result;
 
+    fprintf(stderr,
+            "PCSCLite::HandleReaderStatusChange - m_state: %d, result: %08lx, do_exit: %d\n",
+            async_baton->pcsclite->m_state, ar->result, ar->do_exit);
+
     if (async_baton->pcsclite->m_state == 1) {
         // Swallow events : Listening thread was cancelled by user.
     } else if ((ar->result == SCARD_S_SUCCESS) ||
@@ -172,6 +176,8 @@ void PCSCLite::HandlerFunction(void* arg) {
     PCSCLite* pcsclite = async_baton->pcsclite;
     async_baton->async_result = new AsyncResult();
 
+    fprintf(stderr, "PCSCLite::HandlerFunction - PNP: %d\n", pcsclite->m_pnp);
+
     while (!pcsclite->m_state) {
         /* Get card readers */
         result = pcsclite->get_card_readers(pcsclite, async_baton->async_result);
@@ -189,10 +195,13 @@ void PCSCLite::HandlerFunction(void* arg) {
             pcsclite->m_card_reader_state.dwCurrentState =
                 pcsclite->m_card_reader_state.dwEventState;
             /* Start checking for status change */
+            fprintf(stderr, "PCSCLite::HandlerFunction - BEFORE SCardGetStatusChange\n");
             result = SCardGetStatusChange(pcsclite->m_card_context,
                                           INFINITE,
                                           &pcsclite->m_card_reader_state,
                                           1);
+            fprintf(stderr, "PCSCLite::HandlerFunction - AFTER SCardGetStatusChange"
+                            " result: %08lx\n", result);
 
             uv_mutex_lock(&pcsclite->m_mutex);
             if (pcsclite->m_state) {
