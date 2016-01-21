@@ -93,6 +93,8 @@ NAN_METHOD(PCSCLite::Start) {
 
 NAN_METHOD(PCSCLite::Close) {
 
+    fprintf(stderr, "PCSCLite::Close\n");
+
     Nan::HandleScope scope;
 
     PCSCLite* obj = Nan::ObjectWrap::Unwrap<PCSCLite>(info.This());
@@ -195,7 +197,7 @@ void PCSCLite::HandlerFunction(void* arg) {
             pcsclite->m_card_reader_state.dwCurrentState =
                 pcsclite->m_card_reader_state.dwEventState;
             /* Start checking for status change */
-            fprintf(stderr, "PCSCLite::HandlerFunction - BEFORE SCardGetStatusChange\n");
+            fprintf(stderr, "PCSCLite::HandlerFunction - BEFORE SCardGetStatusChange ******************************************\n");
             result = SCardGetStatusChange(pcsclite->m_card_context,
                                           INFINITE,
                                           &pcsclite->m_card_reader_state,
@@ -227,6 +229,8 @@ void PCSCLite::HandlerFunction(void* arg) {
 }
 
 void PCSCLite::CloseCallback(uv_handle_t *handle) {
+
+    fprintf(stderr, "PCSCLite::CloseCallback\n");
 
     /* cleanup process */
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
@@ -296,6 +300,8 @@ LONG PCSCLite::get_card_readers(PCSCLite* pcsclite, AsyncResult* async_result) {
         async_result->readers_name = readers_name;
         async_result->readers_name_length = readers_name_length;
     }
+
+    fprintf(stderr, "PCSCLite::get_card_readers: %.*s (%lu)\n", (int)async_result->readers_name_length, async_result->readers_name, async_result->readers_name_length);
 
     return result;
 }

@@ -158,6 +158,8 @@ NAN_METHOD(CardReader::Connect) {
 
 NAN_METHOD(CardReader::Disconnect) {
 
+    fprintf(stderr, "CardReader::Disconnect\n");
+
     Nan::HandleScope scope;
 
     if (!info[0]->IsUint32()) {
@@ -300,6 +302,8 @@ NAN_METHOD(CardReader::Control) {
 }
 
 NAN_METHOD(CardReader::Close) {
+
+    fprintf(stderr, "CardReader::Close\n");
 
     Nan::HandleScope scope;
 
@@ -692,6 +696,8 @@ void CardReader::AfterControl(uv_work_t* req, int status) {
 }
 
 void CardReader::CloseCallback(uv_handle_t *handle) {
+
+    fprintf(stderr, "CardReader::CloseCallback\n");
 
     /* cleanup process */
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(handle->data);
