@@ -1,6 +1,6 @@
 {
     "name": "pcsclite",
-    "version": "0.4.7",
+    "version": "0.4.8",
     "engines": {
         "node": ">=0.8.0 < 4"
     },
