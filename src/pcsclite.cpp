@@ -159,7 +159,12 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
     }
 
     /* reset AsyncResult */
+#ifdef SCARD_AUTOALLOCATE
+    PCSCLite* pcsclite = async_baton->pcsclite;
+    SCardFreeMemory(pcsclite->m_card_context, ar->readers_name);
+#else
     delete [] ar->readers_name;
+#endif
     ar->readers_name = NULL;
     ar->readers_name_length = 0;
     ar->result = SCARD_S_SUCCESS;
