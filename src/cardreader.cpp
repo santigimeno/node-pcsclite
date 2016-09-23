@@ -316,9 +316,9 @@ NAN_METHOD(CardReader::Close) {
             } while ((ret != 0) && (++ times < 5));
         }
 
+        uv_mutex_unlock(&obj->m_mutex);
         assert(uv_thread_join(&obj->m_status_thread) == 0);
         obj->m_status_thread = 0;
-        uv_mutex_unlock(&obj->m_mutex);
     }
 
     info.GetReturnValue().Set(Nan::New<Number>(result));
