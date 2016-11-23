@@ -10,7 +10,6 @@
         "test": "test"
     },
     "dependencies": {
-        "buffertools": "^2.1.2",
         "bindings": "^1.1.0",
         "nan": "^2.2.1"
     },
