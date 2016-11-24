@@ -144,11 +144,8 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
         Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
     } else {
-        Local<Value> err = Nan::Error(error_msg("SCardListReaders", ar->result).c_str());
-        // Prepare the parameters for the callback function.
-        const unsigned argc = 1;
-        Local<Value> argv[argc] = { err };
-        Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+        Local<Value> argv[1] = { Nan::Error(ar->err_msg.c_str()) };
+        Nan::Callback(Nan::New(async_baton->callback)).Call(1, argv);
     }
 
     // Do exit, after throwing last events
@@ -186,34 +183,44 @@ void PCSCLite::HandlerFunction(void* arg) {
 
         /* Store the result in the baton */
         async_baton->async_result->result = result;
+        if (result != SCARD_S_SUCCESS) {
+            async_baton->async_result->err_msg = error_msg("SCardListReaders",
+                                                           result);
+        }
+
         /* Notify the nodejs thread */
         uv_async_send(&async_baton->async);
 
-        if (pcsclite->m_pnp) {
-            /* Set current status */
-            pcsclite->m_card_reader_state.dwCurrentState =
-                pcsclite->m_card_reader_state.dwEventState;
-            /* Start checking for status change */
-            result = SCardGetStatusChange(pcsclite->m_card_context,
-                                          INFINITE,
-                                          &pcsclite->m_card_reader_state,
-                                          1);
+        if (result == SCARD_S_SUCCESS) {
+            if (pcsclite->m_pnp) {
+                /* Set current status */
+                pcsclite->m_card_reader_state.dwCurrentState =
+                    pcsclite->m_card_reader_state.dwEventState;
+                /* Start checking for status change */
+                result = SCardGetStatusChange(pcsclite->m_card_context,
+                                              INFINITE,
+                                              &pcsclite->m_card_reader_state,
+                                              1);
 
-            uv_mutex_lock(&pcsclite->m_mutex);
-            if (pcsclite->m_state) {
-                uv_cond_signal(&pcsclite->m_cond);
+                uv_mutex_lock(&pcsclite->m_mutex);
+                async_baton->async_result->result = result;
+                if (pcsclite->m_state) {
+                    uv_cond_signal(&pcsclite->m_cond);
+                }
+
+                if (result != SCARD_S_SUCCESS) {
+                    pcsclite->m_state = 2;
+                    async_baton->async_result->err_msg =
+                      error_msg("SCardGetStatusChange", result);
+                }
+
+                uv_mutex_unlock(&pcsclite->m_mutex);
+            } else {
+                /*  If PnP is not supported, just wait for 1 second */
+                Sleep(1000);
             }
-
-            if (result != SCARD_S_SUCCESS) {
-                pcsclite->m_state = 2;
-            }
-
-            uv_mutex_unlock(&pcsclite->m_mutex);
-        } else if (result == SCARD_S_SUCCESS) {
-            /*  If PnP is not supported, just wait for 1 second */
-            Sleep(1000);
         } else {
-            /* Error on last card access and no PnP, stop monitoring */
+            /* Error on last card access, stop monitoring */
             pcsclite->m_state = 2;
         }
     }

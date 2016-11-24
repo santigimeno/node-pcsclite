@@ -16,6 +16,7 @@ class PCSCLite: public Nan::ObjectWrap {
         LPSTR readers_name;
         DWORD readers_name_length;
         bool do_exit;
+        std::string err_msg;
     };
 
     struct AsyncBaton {
