@@ -290,7 +290,7 @@ LONG PCSCLite::get_card_readers(PCSCLite* pcsclite, AsyncResult* async_result) {
         readers_name_length = 0;
 #ifndef SCARD_AUTOALLOCATE
         /* Retry in case of insufficient buffer error */
-        if (result == SCARD_E_INSUFFICIENT_BUFFER) {
+        if (result == (LONG)SCARD_E_INSUFFICIENT_BUFFER) {
             result = get_card_readers(pcsclite, async_result);
         }
 #endif
