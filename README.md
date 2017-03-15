@@ -30,7 +30,7 @@ To run any code you will also need to have installed the pcsc daemon:
 
 ## Example
 
-```
+```js
 var pcsc = require('pcsclite');
 
 var pcsc = pcsc();
