@@ -28,7 +28,7 @@ PCSCLite::PCSCLite(): m_card_context(0),
     assert(uv_mutex_init(&m_mutex) == 0);
     assert(uv_cond_init(&m_cond) == 0);
 
-    LONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM,
+    ULONG result = SCardEstablishContext(SCARD_SCOPE_SYSTEM,
                                         NULL,
                                         NULL,
                                         &m_card_context);
@@ -169,7 +169,7 @@ void PCSCLite::HandleReaderStatusChange(uv_async_t *handle, int status) {
 
 void PCSCLite::HandlerFunction(void* arg) {
 
-    LONG result = SCARD_S_SUCCESS;
+    ULONG result = SCARD_S_SUCCESS;
     AsyncBaton* async_baton = static_cast<AsyncBaton*>(arg);
     PCSCLite* pcsclite = async_baton->pcsclite;
     async_baton->async_result = new AsyncResult();
