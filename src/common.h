@@ -16,7 +16,7 @@
 
 namespace {
 
-    std::string error_msg(const char* method, LONG result) {
+    std::string error_msg(const char* method, unsigned long result) {
         char msg[ERR_MSG_MAX_LEN];
 #ifdef _WIN32
         LPVOID lpMsgBuf;
