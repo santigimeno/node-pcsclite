@@ -10,9 +10,9 @@
         "test": "test"
     },
     "dependencies": {
-        "buffertools": "^2.1.2",
         "bindings": "^1.1.0",
-        "nan": "^2.2.1"
+        "buffertools": "^2.1.2",
+        "nan": "^2.9.2"
     },
     "devDependencies": {
         "mocha": "~1.11.0",
@@ -25,9 +25,9 @@
     },
     "repository": "https://github.com/santigimeno/node-pcsclite.git",
     "keywords": [
-      "pcsc",
-      "pcsclite",
-      "smartcards"
+        "pcsc",
+        "pcsclite",
+        "smartcards"
     ],
     "author": "Santiago Gimeno <santiago.gimeno@gmail.com>",
     "license": {
