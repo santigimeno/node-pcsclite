@@ -16,7 +16,7 @@
                 ['OS=="linux"', {
                     'include_dirs': [
                         '/usr/include/PCSC',
-                        '<!@(command -v pkg-config >/dev/null 2>&1 && pkg-config libpcsclite --cflags-only-I | sed s/-I//g)'
+                        '<!@(command -v pkg-config >/dev/null 2>&1 && pkg-config libpcsclite --cflags-only-I | sed s/-I//g)',
                         '<!(node -e "require(\'nan\')")'
                     ],
                     'link_settings': {
