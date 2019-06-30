@@ -6,7 +6,7 @@ using namespace node;
 
 Nan::Persistent<Function> CardReader::constructor;
 
-void CardReader::init(Handle<Object> target) {
+void CardReader::init(Local<Object> target) {
 
      // Prepare constructor template
     Local<FunctionTemplate> tpl = Nan::New<FunctionTemplate>(New);
@@ -55,8 +55,9 @@ void CardReader::init(Handle<Object> target) {
     Nan::SetPrototypeTemplate(tpl, "SCARD_UNPOWER_CARD", Nan::New(SCARD_UNPOWER_CARD));
     Nan::SetPrototypeTemplate(tpl, "SCARD_EJECT_CARD", Nan::New(SCARD_EJECT_CARD));
 
-    constructor.Reset(tpl->GetFunction());
-    target->Set(Nan::New("CardReader").ToLocalChecked(), tpl->GetFunction());
+    Local<Function> newfunc = Nan::GetFunction(tpl).ToLocalChecked();
+    constructor.Reset(newfunc);
+    Nan::Set(target, Nan::New("CardReader").ToLocalChecked(), newfunc);
 }
 
 CardReader::CardReader(const std::string &reader_name): m_card_context(0),
@@ -85,11 +86,13 @@ NAN_METHOD(CardReader::New) {
 
     Nan::HandleScope scope;
 
-    v8::String::Utf8Value reader_name(info[0]->ToString());
+    Nan::Utf8String reader_name(info[0]);
     CardReader* obj = new CardReader(*reader_name);
     obj->Wrap(info.Holder());
-    obj->handle()->Set(Nan::New(name_symbol), info[0]->ToString());
-    obj->handle()->Set(Nan::New(connected_symbol), Nan::False());
+    Nan::Set(obj->handle(),
+             Nan::New(name_symbol),
+             Nan::New(*reader_name).ToLocalChecked());
+    Nan::Set(obj->handle(), Nan::New(connected_symbol), Nan::False());
 
     info.GetReturnValue().Set(info.Holder());
 }
@@ -109,8 +112,6 @@ NAN_METHOD(CardReader::GetStatus) {
     uv_async_init(uv_default_loop(), &async_baton->async, (uv_async_cb)HandleReaderStatusChange);
     int ret = uv_thread_create(&obj->m_status_thread, HandlerFunction, async_baton);
     assert(ret == 0);
-
-
 }
 
 NAN_METHOD(CardReader::Connect) {
@@ -131,8 +132,8 @@ NAN_METHOD(CardReader::Connect) {
     }
 
     ConnectInput* ci = new ConnectInput();
-    ci->share_mode = info[0]->Uint32Value();
-    ci->pref_protocol = info[1]->Uint32Value();
+    ci->share_mode = Nan::To<uint32_t>(info[0]).ToChecked();
+    ci->pref_protocol = Nan::To<uint32_t>(info[1]).ToChecked();
     Local<Function> cb = Local<Function>::Cast(info[2]);
 
     // This creates our work request, including the libuv struct.
@@ -166,7 +167,7 @@ NAN_METHOD(CardReader::Disconnect) {
         return Nan::ThrowError("Second argument must be a callback function");
     }
 
-    DWORD disposition = info[0]->Uint32Value();
+    DWORD disposition = Nan::To<uint32_t>(info[0]).ToChecked();
     Local<Function> cb = Local<Function>::Cast(info[1]);
 
     // This creates our work request, including the libuv struct.
@@ -212,9 +213,9 @@ NAN_METHOD(CardReader::Transmit) {
         return Nan::ThrowError("Fourth argument must be a callback function");
     }
 
-    Local<Object> buffer_data = info[0]->ToObject();
-    uint32_t out_len = info[1]->Uint32Value();
-    uint32_t protocol = info[2]->Uint32Value();
+    Local<Object> buffer_data = Nan::To<Object>(info[0]).ToLocalChecked();
+    uint32_t out_len = Nan::To<uint32_t>(info[1]).ToChecked();
+    uint32_t protocol = Nan::To<uint32_t>(info[2]).ToChecked();
     Local<Function> cb = Local<Function>::Cast(info[3]);
 
     // This creates our work request, including the libuv struct.
@@ -267,9 +268,9 @@ NAN_METHOD(CardReader::Control) {
         return Nan::ThrowError("Fourth argument must be a callback function");
     }
 
-    Local<Object> in_buf = info[0]->ToObject();
-    DWORD control_code = info[1]->Uint32Value();
-    Local<Object> out_buf = info[2]->ToObject();
+    Local<Object> in_buf = Nan::To<Object>(info[0]).ToLocalChecked();
+    DWORD control_code = Nan::To<uint32_t>(info[1]).ToChecked();
+    Local<Object> out_buf = Nan::To<Object>(info[2]).ToLocalChecked();
     Local<Function> cb = Local<Function>::Cast(info[3]);
 
     // This creates our work request, including the libuv struct.
@@ -350,14 +351,14 @@ void CardReader::HandleReaderStatusChange(uv_async_t *handle, int status) {
                 Nan::CopyBuffer(reinterpret_cast<char*>(ar->atr), ar->atrlen).ToLocalChecked()
             };
 
-            Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+            Nan::Call(Nan::Callback(Nan::New(async_baton->callback)), argc, argv);
         }
     } else {
         Local<Value> err = Nan::Error(error_msg("SCardGetStatusChange", ar->result).c_str());
         // Prepare the parameters for the callback function.
         const unsigned int argc = 1;
         Local<Value> argv[argc] = { err };
-        Nan::Callback(Nan::New(async_baton->callback)).Call(argc, argv);
+        Nan::Call(Nan::Callback(Nan::New(async_baton->callback)), argc, argv);
     }
 
     if (ar->do_exit) {
@@ -471,16 +472,16 @@ void CardReader::AfterConnect(uv_work_t* req, int status) {
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Local<Value> argv[argc] = { err };
-        Nan::Callback(Nan::New(baton->callback)).Call(argc, argv);
+        Nan::Call(Nan::Callback(Nan::New(baton->callback)), argc, argv);
     } else {
-        baton->reader->handle()->Set(Nan::New(connected_symbol), Nan::True());
+        Nan::Set(baton->reader->handle(), Nan::New(connected_symbol), Nan::True());
         const unsigned argc = 2;
         Local<Value> argv[argc] = {
             Nan::Null(),
             Nan::New<Number>(cr->card_protocol)
         };
 
-        Nan::Callback(Nan::New(baton->callback)).Call(argc, argv);
+        Nan::Call(Nan::Callback(Nan::New(baton->callback)), argc, argv);
     }
 
     // The callback is a permanent handle, so we have to dispose of it manually.
@@ -526,15 +527,15 @@ void CardReader::AfterDisconnect(uv_work_t* req, int status) {
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Local<Value> argv[argc] = { err };
-        Nan::Callback(Nan::New(baton->callback)).Call(argc, argv);
+        Nan::Call(Nan::Callback(Nan::New(baton->callback)), argc, argv);
     } else {
-        baton->reader->handle()->Set(Nan::New(connected_symbol), Nan::False());
+        Nan::Set(baton->reader->handle(), Nan::New(connected_symbol), Nan::False());
         const unsigned argc = 1;
         Local<Value> argv[argc] = {
             Nan::Null()
         };
 
-        Nan::Callback(Nan::New(baton->callback)).Call(argc, argv);
+        Nan::Call(Nan::Callback(Nan::New(baton->callback)), argc, argv);
     }
 
     // The callback is a permanent handle, so we have to dispose of it manually.
@@ -587,7 +588,7 @@ void CardReader::AfterTransmit(uv_work_t* req, int status) {
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Local<Value> argv[argc] = { err };
-        Nan::Callback(Nan::New(baton->callback)).Call(argc, argv);
+        Nan::Call(Nan::Callback(Nan::New(baton->callback)), argc, argv);
     } else {
         const unsigned argc = 2;
         Local<Value> argv[argc] = {
@@ -595,7 +596,7 @@ void CardReader::AfterTransmit(uv_work_t* req, int status) {
             Nan::CopyBuffer(reinterpret_cast<char*>(tr->data), tr->len).ToLocalChecked()
         };
 
-        Nan::Callback(Nan::New(baton->callback)).Call(argc, argv);
+        Nan::Call(Nan::Callback(Nan::New(baton->callback)), argc, argv);
     }
 
 
@@ -651,7 +652,7 @@ void CardReader::AfterControl(uv_work_t* req, int status) {
         // Prepare the parameters for the callback function.
         const unsigned argc = 1;
         Local<Value> argv[argc] = { err };
-        Nan::Callback(Nan::New(baton->callback)).Call(argc, argv);
+        Nan::Call(Nan::Callback(Nan::New(baton->callback)), argc, argv);
     } else {
         const unsigned argc = 2;
         Local<Value> argv[argc] = {
@@ -659,7 +660,7 @@ void CardReader::AfterControl(uv_work_t* req, int status) {
             Nan::New<Number>(cr->len)
         };
 
-        Nan::Callback(Nan::New(baton->callback)).Call(argc, argv);
+        Nan::Call(Nan::Callback(Nan::New(baton->callback)), argc, argv);
     }
 
 
