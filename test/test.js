@@ -17,7 +17,7 @@ describe('Testing PCSCLite private', function() {
                 setInterval(function() {
                     switch (++ times) {
                         case 1:
-                            my_cb(undefined, new Buffer("MyReader\0"));
+                            my_cb(undefined, new Buffer("MyReader\0\0"));
                             self.clock.tick(1000);
                         break;
 
@@ -26,7 +26,7 @@ describe('Testing PCSCLite private', function() {
                         break;
 
                         case 3:
-                            my_cb(undefined, new Buffer("MyReader1\0MyReader2\0"));
+                            my_cb(undefined, new Buffer("MyReader1\0MyReader2\0\0"));
                         break;
                     }
                 }, 1000);
@@ -66,7 +66,7 @@ describe('Testing CardReader private', function() {
         var p = pcsc();
         var stub = sinon.stub(p, 'start', function(my_cb) {
             /* "MyReader\0" */
-            my_cb(undefined, new Buffer("MyReader\0"));
+            my_cb(undefined, new Buffer("MyReader\0\0"));
         });
 
         return p;
@@ -118,7 +118,6 @@ describe('Testing CardReader private', function() {
                 });
             });
         });
-
     });
 
     describe('#_disconnect()', function() {
