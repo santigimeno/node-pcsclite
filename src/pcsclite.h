@@ -28,7 +28,7 @@ class PCSCLite: public Nan::ObjectWrap {
 
     public:
 
-        static void init(v8::Handle<v8::Object> target);
+        static void init(v8::Local<v8::Object> target);
 
     private:
 
