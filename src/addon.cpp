@@ -1,12 +1,10 @@
 #include "pcsclite.h"
 #include "cardreader.h"
 
-using namespace v8;
-using namespace node;
-
-void init_all(Local<Object> target) {
-    PCSCLite::init(target);
-    CardReader::init(target);
+Napi::Object init_all(Napi::Env env, Napi::Object target) {
+  PCSCLite::init(env, target);
+  CardReader::init(env, target);
+  return target;
 }
 
-NODE_MODULE(pcsclite, init_all)
+NODE_API_MODULE(pcsclite, init_all)

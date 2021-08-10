@@ -11,12 +11,15 @@
                 '-fno-strict-aliasing',
                 '-fno-exceptions',
                 '-pedantic'
-              ],
+            ],
+            'include_dirs': [
+                '<!(node -p "require(\'node-addon-api\').include_dir")'
+            ],
+            'defines': [ 'NAPI_DISABLE_CPP_EXCEPTIONS' ],
             'conditions': [
                 ['OS=="linux"', {
                     'include_dirs': [
-                        '/usr/include/PCSC',
-                        '<!(node -e "require(\'nan\')")'
+                        '/usr/include/PCSC'
                     ],
                     'link_settings': {
                         'libraries': [ '-lpcsclite' ],
@@ -24,12 +27,14 @@
                     }
                 }],
                 ['OS=="mac"', {
-                  'libraries': ['-framework', 'PCSC'],
-                  "include_dirs" : [ "<!(node -e \"require('nan')\")" ]
+                    'cflags+': ['-fvisibility=hidden'],
+                    'xcode_settings': {
+                        'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES', # -fvisibility=hidden
+                    },
+                    'libraries': ['-framework', 'PCSC']
                 }],
                 ['OS=="win"', {
-                  'libraries': ['-lWinSCard'],
-                  "include_dirs" : [ "<!(node -e \"require('nan')\")" ]
+                    'libraries': ['-lWinSCard']
                 }]
             ]
         }

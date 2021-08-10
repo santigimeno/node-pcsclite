@@ -1,7 +1,8 @@
 #ifndef PCSCLITE_H
 #define PCSCLITE_H
 
-#include <nan.h>
+#include <napi.h>
+#include <uv.h>
 #ifdef __APPLE__
 #include <PCSC/winscard.h>
 #include <PCSC/wintypes.h>
@@ -9,7 +10,7 @@
 #include <winscard.h>
 #endif
 
-class PCSCLite: public Nan::ObjectWrap {
+class PCSCLite : public Napi::ObjectWrap<PCSCLite> {
 
     struct AsyncResult {
         LONG result;
@@ -20,32 +21,29 @@ class PCSCLite: public Nan::ObjectWrap {
     };
 
     struct AsyncBaton {
+        Napi::Env env;
         uv_async_t async;
-        Nan::Persistent<v8::Function> callback;
+        Napi::FunctionReference callback;
         PCSCLite *pcsclite;
         AsyncResult *async_result;
     };
 
     public:
 
-        static void init(v8::Local<v8::Object> target);
+        static void init(Napi::Env env, Napi::Object target);
+        PCSCLite(const Napi::CallbackInfo& info);
+        ~PCSCLite();
 
     private:
 
-        PCSCLite();
 
-        ~PCSCLite();
+        Napi::Value Start(const Napi::CallbackInfo& info);
+        Napi::Value Close(const Napi::CallbackInfo& info);
+        LONG get_card_readers(PCSCLite* pcsclite, AsyncResult* async_result);
 
-        static Nan::Persistent<v8::Function> constructor;
-        static NAN_METHOD(New);
-        static NAN_METHOD(Start);
-        static NAN_METHOD(Close);
-
-        static void HandleReaderStatusChange(uv_async_t *handle, int status);
+        static void HandleReaderStatusChange(uv_async_t *handle);
         static void HandlerFunction(void* arg);
         static void CloseCallback(uv_handle_t *handle);
-
-        LONG get_card_readers(PCSCLite* pcsclite, AsyncResult* async_result);
 
     private:
 
