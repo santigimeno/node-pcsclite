@@ -19,7 +19,7 @@
                         '<!(node -e "require(\'nan\')")'
                     ],
                     'cflags': [
-                        '<!@(command -v pkg-config && pkg-config --cflags libpcsclite || true)'
+                        '<!@(command -v pkg-config &> /dev/null && pkg-config --cflags libpcsclite || true)'
                     ],
                     'link_settings': {
                         'libraries': [ '-lpcsclite' ],
