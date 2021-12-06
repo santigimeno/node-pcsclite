@@ -18,6 +18,9 @@
                         '/usr/include/PCSC',
                         '<!(node -e "require(\'nan\')")'
                     ],
+                    'cflags': [
+                        '<!@(command -v pkg-config && pkg-config --cflags libpcsclite || true)'
+                    ],
                     'link_settings': {
                         'libraries': [ '-lpcsclite' ],
                         'library_dirs': [ '/usr/lib' ]
