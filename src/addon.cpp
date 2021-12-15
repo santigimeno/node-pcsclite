@@ -9,4 +9,8 @@ void init_all(Local<Object> target) {
     CardReader::init(target);
 }
 
+#if NODE_MAJOR_VERSION >= 10
+NAN_MODULE_WORKER_ENABLED(pcsclite, init_all)
+#else
 NODE_MODULE(pcsclite, init_all)
+#endif
