@@ -6,6 +6,7 @@
     },
     "description": "Bindings over PC/SC to access Smart Cards",
     "main": "index.js",
+    "types": "index.d.ts",
     "directories": {
         "test": "test"
     },
