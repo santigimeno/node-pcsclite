@@ -30,6 +30,8 @@ To run any code you will also need to have installed the pcsc daemon:
 
 ## Example
 
+### JavaScript
+
 ```js
 var pcsc = require('pcsclite');
 
@@ -86,6 +88,25 @@ pcsc.on('reader', function(reader) {
 pcsc.on('error', function(err) {
     console.log('PCSC error', err.message);
 });
+```
+
+### TypeScript
+
+```ts
+import PCSCLite, { CardReader } from 'pcsclite';
+
+const pcsc = PCSCLite();
+
+const onReaderError = (e: Error) => {
+    console.log(e.message);
+};
+
+const onReaderDetected = (reader: CardReader) => {
+    // Listen to all other reader events here; for example,
+    reader.on('error', onReaderError);
+};
+
+pcsc.on('reader', onReaderDetected);
 ```
 
 ## API
